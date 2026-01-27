@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingresar - TechStore</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f9; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .card-login { width: 100%; max-width: 400px; border: none; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="card card-login p-4">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-primary">TECHSTORE</h2>
+            <p class="text-muted">Ingresa con tu correo</p>
+        </div>
+        
+        {% if error %}
+        <div class="alert alert-danger text-center">{{ error }}</div>
+        {% endif %}
+
+        <form action="/login" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Correo Electrónico</label>
+                <input type="email" name="correo" class="form-control form-control-lg" placeholder="ejemplo@techstore.ec" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 btn-lg fw-bold">Ingresar</button>
+        </form>
+        
+        <div class="text-center mt-3">
+            <a href="/" class="text-decoration-none small">Volver a la tienda</a>
+        </div>
+    </div>
+</body>
+</html>
