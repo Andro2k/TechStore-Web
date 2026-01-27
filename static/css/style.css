@@ -1,0 +1,77 @@
+:root {
+    --sidebar-width: 260px;
+    --tech-blue: #0d6efd;
+    --dark-bg: #1a1d20;
+}
+
+body {
+    background-color: #f4f7f9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Sidebar Estilizado */
+.sidebar {
+    width: var(--sidebar-width);
+    height: 100vh;
+    position: fixed;
+    background: var(--dark-bg);
+    color: white;
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+.sidebar.collapsed {
+    margin-left: -260px; /* Oculta el sidebar */
+}
+.sidebar .nav-link {
+    color: #adb5bd;
+    transition: 0.3s;
+    margin: 5px 0;
+}
+
+.sidebar .nav-link:hover, .sidebar .nav-link.active {
+    background: var(--tech-blue);
+    color: white;
+}
+
+/* Contenido Principal */
+.main-content {
+    margin-left: var(--sidebar-width);
+    padding: 30px;
+    transition: all 0.3s ease;
+}
+.main-content.expanded {
+    margin-left: 0;
+}
+
+#sidebarToggle {
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #212529;
+}
+/* Tarjetas y Tablas */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.table thead {
+    background-color: #f8f9fa;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Animaciones simples */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
