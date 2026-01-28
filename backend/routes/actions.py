@@ -94,57 +94,109 @@ def checkout():
 
 @actions_bp.route('/add_product', methods=['POST'])
 def add_product():
-    sucursal_actual = session.get('sucursal', 'Quito')
-    
-    if sucursal_actual != 'Guayaquil':
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Acceso denegado. Solo Nodo Gestión."))
+    if session.get('sucursal') != 'Guayaquil':
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Acceso denegado."))
 
     try:
-        conn = get_db_connection(sucursal_actual)
+        conn = get_db_connection('Guayaquil')
         cursor = conn.cursor()
-        
-        # --- CORRECCIÓN CRÍTICA AQUÍ ---
-        # Activamos XACT_ABORT ON para esta sesión de Python específicamente.
-        # Esto es OBLIGATORIO para transacciones distribuidas (Linked Servers).
-        cursor.execute("SET XACT_ABORT ON")
-        # -------------------------------
         
         # Datos del formulario
         id_prod = request.form['id_producto']
-        target_sucursal = request.form['target_sucursal'] 
-        stock = request.form['stock']
         nombre = request.form['nombre']
         marca = request.form['marca']
         precio = request.form['precio']
+        
+        # Stocks ingresados
+        stock_para_gye = int(request.form['stock_gye'])
+        stock_para_uio = int(request.form['stock_uio'])
+        stock_total_fisico = stock_para_gye + stock_para_uio
 
-        # 1. INSERTAR EN CATALOGO (Local - Guayaquil)
+        # 1. CREAR PRODUCTO (Catálogo Global)
         cursor.execute("INSERT INTO PRODUCTO (Id_producto, nombre, marca, precio) VALUES (?, ?, ?, ?)",
                        (id_prod, nombre, marca, precio))
         
-        # 2. INSERTAR EL STOCK
-        if target_sucursal == '2':
-            # Local (Guayaquil)
+        # 2. INGRESAR TODO EL STOCK A BODEGA MATRIZ (Primero entra todo a GYE)
+        # Si llegaron 100 laptops (50 para mi, 50 para Quito), fisicamente entraron 100 a mi bodega primero.
+        if stock_total_fisico > 0:
             cursor.execute("INSERT INTO INVENTARIO (Id_sucursal, Id_producto, cantidad) VALUES (2, ?, ?)",
-                           (id_prod, stock))
+                           (id_prod, stock_total_fisico))
         
-        elif target_sucursal == '1':
-            # Remoto (Quito) - Linked Server
-            # Al tener XACT_ABORT ON, SQL Server permitirá la transacción anidada
-            query_remota = """
-                INSERT INTO [LAPTOP].[TechStore_Quito].[dbo].[INVENTARIO] 
-                (Id_sucursal, Id_producto, cantidad) VALUES (1, ?, ?)
-            """
-            cursor.execute(query_remota, (id_prod, stock))
+        # 3. EJECUTAR TRANSFERENCIA AUTOMÁTICA (Si se pidió enviar a Quito)
+        if stock_para_uio > 0:
+            # Llamamos al SP de envío que ya creamos. 
+            # Este SP restará los 50 de GYE y creará el registro de envío.
+            cursor.execute("EXEC sp_Enviar_A_Quito @IdProducto = ?, @Cantidad = ?", (id_prod, stock_para_uio))
 
         conn.commit()
         conn.close()
         return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
         
     except Exception as e:
-        # Si algo falla (ej. Quito apagado), XACT_ABORT ON asegura que el 
-        # INSERT del producto local también se cancele automáticamente.
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=str(e)))
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=f"Error al agregar: {str(e)}"))
 
+@actions_bp.route('/delete_product', methods=['POST'])
+def delete_product():
+    if session.get('sucursal') != 'Guayaquil':
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Solo Matriz puede eliminar."))
+
+    id_prod = request.form['id_producto']
+
+    try:
+        conn = get_db_connection('Guayaquil')
+        cursor = conn.cursor()
+
+        # Validar si tiene ventas (Integridad Referencial)
+        # Nota: Revisamos localmente. Si hay ventas en Quito, la replicación podría fallar al borrar,
+        # pero SQL Server suele proteger esto con Foreign Keys.
+        
+        # 1. Borrar de Inventario Local (Si existe)
+        cursor.execute("DELETE FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = 2", (id_prod,))
+        
+        # 2. Borrar del Catálogo (Esto disparará la replicación de borrado a Quito)
+        cursor.execute("DELETE FROM PRODUCTO WHERE Id_producto = ?", (id_prod,))
+
+        conn.commit()
+        conn.close()
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
+
+    except Exception as e:
+        # Error común: FK Constraint (Ya se vendió el producto)
+        if "REFERENCE" in str(e) or "conflicted" in str(e):
+            mensaje = "No se puede eliminar: El producto ya tiene ventas o movimientos registrados."
+        else:
+            mensaje = f"Error al eliminar: {str(e)}"
+            
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=mensaje))
+    
+@actions_bp.route('/delete_local_inventory', methods=['POST'])
+def delete_local_inventory():
+    # Esta acción es para que una sucursal "limpie" su bodega
+    # No borra el producto del catálogo (porque eso es de Guayaquil), 
+    # solo borra el registro de existencias local.
+    
+    sucursal = session.get('sucursal')
+    # Validamos que NO sea Guayaquil (ellos usan delete_product)
+    if sucursal == 'Guayaquil':
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Usa el botón de eliminar global."))
+
+    id_prod = request.form['id_producto']
+    id_suc = 1  # Asumimos Quito (Nodo 1)
+
+    try:
+        conn = get_db_connection(sucursal)
+        cursor = conn.cursor()
+
+        # Solo borramos de la tabla INVENTARIO local
+        cursor.execute("DELETE FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, id_suc))
+
+        conn.commit()
+        conn.close()
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
+
+    except Exception as e:
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=f"Error al retirar stock: {str(e)}"))
+    
 @actions_bp.route('/edit_product', methods=['POST'])
 def edit_product():
     sucursal = session.get('sucursal', 'Quito')
@@ -183,3 +235,48 @@ def add_employee():
         return redirect(url_for('views.dashboard', tabla='EMPLEADO'))
     except Exception as e:
         return redirect(url_for('views.dashboard', tabla='EMPLEADO', error=str(e)))
+
+@actions_bp.route('/enviar_mercaderia', methods=['POST'])
+def enviar_mercaderia():
+    # 1. Solo Guayaquil puede enviar
+    if session.get('sucursal') != 'Guayaquil':
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error="Solo la Matriz puede realizar envíos."))
+
+    id_producto = request.form['id_producto']
+    cantidad = request.form['cantidad']
+
+    try:
+        conn = get_db_connection('Guayaquil')
+        cursor = conn.cursor()
+        
+        # Llamamos al SP que creamos en SQL (Resta stock GYE e inserta en ENVIO)
+        cursor.execute("EXEC sp_Enviar_A_Quito @IdProducto = ?, @Cantidad = ?", (id_producto, cantidad))
+        
+        conn.commit()
+        conn.close()
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA'))
+    except Exception as e:
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error=f"Error en envío: {str(e)}"))
+
+@actions_bp.route('/recibir_mercaderia', methods=['POST'])
+def recibir_mercaderia():
+    # 2. Solo Quito puede recibir
+    if session.get('sucursal') != 'Quito':
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error="Solo la Sucursal puede confirmar recepciones."))
+
+    id_envio = request.form['id_envio']
+    usuario = session.get('user_name', 'Admin')
+
+    try:
+        conn = get_db_connection('Quito')
+        cursor = conn.cursor()
+        
+        # Llamamos al SP que creamos en SQL (Verifica, Inserta Recepción y Suma Stock UIO)
+        cursor.execute("EXEC sp_Recibir_De_Guayaquil @IdEnvio = ?, @Usuario = ?", (id_envio, usuario))
+        
+        conn.commit()
+        conn.close()
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA'))
+    except Exception as e:
+        # Capturamos los errores personalizados del SP (ej. "Ya fue recibido")
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error=f"Error al recibir: {str(e)}"))
