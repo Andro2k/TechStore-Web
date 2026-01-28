@@ -94,21 +94,55 @@ def checkout():
 
 @actions_bp.route('/add_product', methods=['POST'])
 def add_product():
-    sucursal = session.get('sucursal', 'Quito')
-    if sucursal != 'Guayaquil':
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Acceso denegado."))
+    sucursal_actual = session.get('sucursal', 'Quito')
+    
+    if sucursal_actual != 'Guayaquil':
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Acceso denegado. Solo Nodo Gestión."))
 
     try:
-        conn = get_db_connection(sucursal)
+        conn = get_db_connection(sucursal_actual)
         cursor = conn.cursor()
+        
+        # --- CORRECCIÓN CRÍTICA AQUÍ ---
+        # Activamos XACT_ABORT ON para esta sesión de Python específicamente.
+        # Esto es OBLIGATORIO para transacciones distribuidas (Linked Servers).
+        cursor.execute("SET XACT_ABORT ON")
+        # -------------------------------
+        
+        # Datos del formulario
+        id_prod = request.form['id_producto']
+        target_sucursal = request.form['target_sucursal'] 
+        stock = request.form['stock']
+        nombre = request.form['nombre']
+        marca = request.form['marca']
+        precio = request.form['precio']
+
+        # 1. INSERTAR EN CATALOGO (Local - Guayaquil)
         cursor.execute("INSERT INTO PRODUCTO (Id_producto, nombre, marca, precio) VALUES (?, ?, ?, ?)",
-                       (request.form['id_producto'], request.form['nombre'], request.form['marca'], request.form['precio']))
-        cursor.execute("INSERT INTO INVENTARIO (Id_sucursal, Id_producto, cantidad) VALUES (2, ?, ?)",
-                       (request.form['id_producto'], request.form['stock']))
+                       (id_prod, nombre, marca, precio))
+        
+        # 2. INSERTAR EL STOCK
+        if target_sucursal == '2':
+            # Local (Guayaquil)
+            cursor.execute("INSERT INTO INVENTARIO (Id_sucursal, Id_producto, cantidad) VALUES (2, ?, ?)",
+                           (id_prod, stock))
+        
+        elif target_sucursal == '1':
+            # Remoto (Quito) - Linked Server
+            # Al tener XACT_ABORT ON, SQL Server permitirá la transacción anidada
+            query_remota = """
+                INSERT INTO [LAPTOP].[TechStore_Quito].[dbo].[INVENTARIO] 
+                (Id_sucursal, Id_producto, cantidad) VALUES (1, ?, ?)
+            """
+            cursor.execute(query_remota, (id_prod, stock))
+
         conn.commit()
         conn.close()
         return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
+        
     except Exception as e:
+        # Si algo falla (ej. Quito apagado), XACT_ABORT ON asegura que el 
+        # INSERT del producto local también se cancele automáticamente.
         return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=str(e)))
 
 @actions_bp.route('/edit_product', methods=['POST'])

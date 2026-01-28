@@ -42,16 +42,28 @@ def dashboard():
         cursor = conn.cursor()
         
         if tabla == 'PRODUCTO':
+            # Fíjate en la nueva línea: '... as Bodega'
             cursor.execute("""
-                SELECT P.Id_producto, P.nombre, P.marca, P.precio, ISNULL(I.cantidad, 0) as Stock
+                SELECT 
+                    P.Id_producto, 
+                    P.nombre, 
+                    P.marca, 
+                    P.precio, 
+                    ISNULL(I.cantidad, 0) as Stock,
+                    ? as Bodega   -- <--- ESTO AGREGA LA COLUMNA AL HTML AUTOMÁTICAMENTE
                 FROM PRODUCTO P
                 LEFT JOIN INVENTARIO I ON P.Id_producto = I.Id_producto AND I.Id_sucursal = ?
-            """, (id_suc,))
-        # --- Lógica de Vistas Distribuidas ---
+            """, (sucursal, id_suc)) # Pasamos el nombre 'sucursal' como parámetro
+            
+        # --- AGREGAR ESTO ---
+        elif tabla == 'SUCURSAL':
+            cursor.execute("SELECT Id_sucursal, nombre, direccion, ciudad FROM SUCURSAL")
+        # --------------------
+
         elif tabla == 'INVENTARIO':
-            cursor.execute("SELECT * FROM DETALLE_FACTURA")
+            cursor.execute("SELECT * FROM V_INVENTARIO_GLOBAL")
         elif tabla == 'FACTURA':
-            cursor.execute("SELECT * FROM FACTURA")
+            cursor.execute("SELECT * FROM V_REPORTE_VENTAS")
         # -------------------------------------
         else:
             cursor.execute(f"SELECT * FROM {tabla}")

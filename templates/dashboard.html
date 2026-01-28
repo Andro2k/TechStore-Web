@@ -32,6 +32,12 @@
                     <i class="bi bi-person-badge me-2"></i> Empleados
                 </a>
             </li>
+            <li>
+                <a href="/dashboard?tabla=SUCURSAL" class="nav-link {% if tabla_activa == 'SUCURSAL' %}active{% endif %}">
+                    <i class="bi bi-building-fill me-2"></i> Sucursales
+                </a>
+            </li>
+            
             <hr class="border-secondary">
             <li class="nav-item">
                 <span class="text-muted small px-3 text-uppercase fw-bold">Vistas Distribuidas</span>
@@ -84,15 +90,28 @@
             
             {% if tabla_activa == 'PRODUCTO' %}
             <div class="card p-4 mb-4 shadow-sm border-0 fade-in border-start border-primary border-5">
-                <h6 class="text-primary fw-bold text-uppercase mb-3 small"><i class="bi bi-plus-square-fill me-1"></i> Catálogo y Stock</h6>
+                <h6 class="text-primary fw-bold text-uppercase mb-3 small"><i class="bi bi-plus-square-fill me-1"></i> Catálogo y Stock Inicial</h6>
                 <form action="/add_product" method="POST" class="row g-2">
                     <div class="col-md-1"><input type="number" name="id_producto" class="form-control" placeholder="ID" required></div>
                     <div class="col-md-3"><input type="text" name="nombre" class="form-control" placeholder="Nombre" required></div>
                     <div class="col-md-2"><input type="text" name="marca" class="form-control" placeholder="Marca"></div>
                     <div class="col-md-2"><input type="number" step="0.01" name="precio" class="form-control" placeholder="Precio" required></div>
-                    <div class="col-md-2"><input type="number" name="stock" class="form-control" placeholder="Stock" required></div>
+                    
+                    <div class="col-md-2">
+                        <div class="input-group">
+                            <input type="number" name="stock" class="form-control" placeholder="Cant." required>
+                            <select name="target_sucursal" class="form-select bg-light text-secondary" style="max-width: 60px;" title="Destino del Stock">
+                                <option value="2">GYE</option>
+                                <option value="1">UIO</option>
+                            </select>
+                        </div>
+                    </div>
+                    
                     <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Registrar</button></div>
                 </form>
+                <div class="text-end mt-1">
+                    <small class="text-muted fst-italic" style="font-size: 0.75rem;">*Selecciona UIO para enviar stock remoto.</small>
+                </div>
             </div>
             {% endif %}
 
@@ -112,6 +131,35 @@
 
         {% endif %}
 
+        {% if tabla_activa == 'SUCURSAL' %}
+        <div class="row mb-4 fade-in">
+            {% if datos %}
+                {% for suc in datos %}
+                <div class="col-md-6 mb-3">
+                    <div class="card border-0 shadow-sm h-100 product-card">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3">
+                                    <i class="bi bi-building fs-3"></i>
+                                </div>
+                                <div>
+                                    <h5 class="fw-bold mb-0 text-dark">{{ suc[1] }}</h5> <span class="badge mt-1 {{ 'bg-success' if suc[0] == 2 else 'bg-warning text-dark' }}">
+                                        NODO ID: {{ suc[0] }}
+                                    </span>
+                                </div>
+                            </div>
+                            <ul class="list-unstyled text-muted small mb-0 ms-2">
+                                <li class="mb-2"><i class="bi bi-geo-alt-fill me-2 text-secondary"></i>{{ suc[2] }}</li> <li class="mb-2"><i class="bi bi-map-fill me-2 text-secondary"></i>{{ suc[3] }}</li> </ul>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12"><p class="text-center text-muted">No se encontraron sucursales.</p></div>
+            {% endif %}
+        </div>
+        {% else %}
+        
         <div class="card shadow-sm border-0 fade-in">
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -136,9 +184,10 @@
                                     
                                     {% if tabla_activa == 'PRODUCTO' and sucursal == 'Guayaquil' %}
                                     <td class="text-center">
-                                        <button class="btn btn-sm btn-outline-warning" 
+                                        <button class="btn btn-sm btn-outline-warning border-0" 
+                                                title="Editar Producto"
                                                 onclick="prepararEdicion('{{ fila[0] }}', '{{ fila[1] }}', '{{ fila[2] }}', '{{ fila[3] }}', '{{ fila[4] }}')">
-                                            <i class="bi bi-pencil"></i>
+                                            <i class="bi bi-pencil-square fs-6"></i>
                                         </button>
                                     </td>
                                     {% endif %}
@@ -146,7 +195,10 @@
                                 {% endfor %}
                             {% else %}
                             <tr>
-                                <td colspan="100%" class="text-center py-5 text-muted">No hay registros disponibles en este fragmento.</td>
+                                <td colspan="100%" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-3 text-secondary"></i>
+                                    No hay registros disponibles en {{ sucursal }}.
+                                </td>
                             </tr>
                             {% endif %}
                         </tbody>
@@ -154,6 +206,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 
     <div class="modal fade" id="editModal" tabindex="-1">
@@ -178,14 +231,50 @@
                         <input type="number" name="stock" id="edit_stock" class="form-control" required>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold">Guardar Cambios</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <script>
+        // Funciones básicas de JS
+        var sidebarToggle = document.getElementById('sidebarToggle');
+        var sidebar = document.getElementById('sidebar');
+        var content = document.getElementById('content');
+
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+            // Opcional: ajustar margen del contenido si quisieras efecto de empuje
+        });
+
+        function prepararEdicion(id, nombre, marca, precio, stock) {
+            document.getElementById('edit_id').value = id;
+            document.getElementById('edit_nombre').value = nombre;
+            document.getElementById('edit_marca').value = marca;
+            document.getElementById('edit_precio').value = precio;
+            document.getElementById('edit_stock').value = stock;
+            
+            var modal = new bootstrap.Modal(document.getElementById('editModal'));
+            modal.show();
+        }
+    </script>
+    <style>
+        /* Agrega esto a tu CSS si no lo tienes, o déjalo aquí para probar */
+        .sidebar { min-height: 100vh; width: 250px; background: #212529; color: white; position: fixed; left: 0; top: 0; transition: all 0.3s; z-index: 1000; }
+        .sidebar a { color: rgba(255,255,255,0.8); }
+        .sidebar a:hover, .sidebar a.active { background: #0d6efd; color: white; }
+        .main-content { margin-left: 250px; padding: 20px; transition: all 0.3s; width: calc(100% - 250px); }
+        .fade-in { animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @media (max-width: 768px) {
+            .sidebar { margin-left: -250px; }
+            .sidebar.active { margin-left: 0; }
+            .main-content { margin-left: 0; width: 100%; }
+        }
+    </style>
 </body>
 </html>
