@@ -193,15 +193,23 @@ def delete_product():
         cursor = conn.cursor()
         id_prod = request.form['id_producto']
 
+        # --- PASO 1: Eliminar Referencias (Limpieza de Historial) ---
+        # ¡ADVERTENCIA!: Esto borrará este producto de todas las facturas históricas en Guayaquil.    
+        # 1.1 Borrar de Envíos Logísticos
+        cursor.execute("DELETE FROM TRANSFERENCIA_ENVIO WHERE Id_producto = ?", (id_prod,))     
+        # 1.2 Borrar de Detalles de Factura (Ventas Locales Guayaquil)
+        cursor.execute("DELETE FROM DETALLE_FACTURA WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, ID_GUAYAQUIL))       
+        # 1.3 Borrar de Inventario (Stock Local Guayaquil)
         cursor.execute("DELETE FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, ID_GUAYAQUIL))
         cursor.execute("DELETE FROM PRODUCTO WHERE Id_producto = ?", (id_prod,))
 
         conn.commit()
         conn.close()
         return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
+        
     except Exception as e:
-        mensaje = "No se puede eliminar: El producto tiene ventas asociadas." if "REFERENCE" in str(e) else f"Error: {str(e)}"
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=mensaje))
+        # Si aún falla (ej. si hay referencias en otra tabla que olvidamos), mostramos el error
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=f"Error crítico: {str(e)}"))
 
 @actions_bp.route('/delete_local_inventory', methods=['POST'])
 def delete_local_inventory():
