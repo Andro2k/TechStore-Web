@@ -10,11 +10,11 @@ def create_app():
     # Importar Blueprints
     from .routes.views import views_bp
     from .routes.actions import actions_bp
-    from .routes.auth import auth_bp  # <--- AGREGAR ESTO
+    from .routes.auth import auth_bp
 
     # Registrar Blueprints
     app.register_blueprint(views_bp)
     app.register_blueprint(actions_bp)
-    app.register_blueprint(auth_bp)   # <--- AGREGAR ESTO
+    app.register_blueprint(auth_bp)
 
     return app

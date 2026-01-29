@@ -2,18 +2,32 @@
 from flask import Blueprint, request, redirect, session, url_for
 from backend.database import get_db_connection
 
+# --- CONFIGURACIÓN ---
 actions_bp = Blueprint('actions', __name__)
+
+# Constantes para evitar "números mágicos" en el código
+ID_QUITO = 1
+ID_GUAYAQUIL = 2
+
+# ==============================================================================
+# 1. GESTIÓN DE SESIÓN Y NAVEGACIÓN
+# ==============================================================================
 
 @actions_bp.route('/cambiar_sucursal', methods=['POST'])
 def cambiar_sucursal():
+    """Permite al usuario cambiar el contexto de la base de datos (Quito/Guayaquil)."""
     session['sucursal'] = request.form['nueva_sucursal']
-    # Nota: usamos 'views.index' porque ahora index está dentro del blueprint 'views'
     return redirect(request.referrer or url_for('views.index'))
+
+
+# ==============================================================================
+# 2. PROCESOS DE VENTA (CHECKOUT)
+# ==============================================================================
 
 @actions_bp.route('/checkout', methods=['POST'])
 def checkout():
     sucursal = session.get('sucursal', 'Quito')
-    id_suc = 1 if sucursal == 'Quito' else 2
+    id_suc_actual = ID_QUITO if sucursal == 'Quito' else ID_GUAYAQUIL
     
     # Datos del formulario
     id_prod = request.form['id_producto']
@@ -26,74 +40,81 @@ def checkout():
         conn = get_db_connection(sucursal)
         cursor = conn.cursor()
 
-        # 1. VALIDAR STOCK DISPONIBLE (Seguridad Backend)
-        cursor.execute("SELECT cantidad FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, id_suc))
+        # A. Validar Stock Disponible
+        cursor.execute("SELECT cantidad FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, id_suc_actual))
         row = cursor.fetchone()
+        
         if not row or row[0] < cantidad_compra:
             conn.close()
-            return redirect(url_for('views.index', error=f"Error: Stock insuficiente. Disponibles: {row[0] if row else 0}"))
+            return redirect(url_for('views.index', error=f"Stock insuficiente. Disponibles: {row[0] if row else 0}"))
 
-        # 2. IDENTIFICAR AL CLIENTE
+        # B. Identificar o Registrar Cliente
         id_cliente = None
-        
         if 'user_id' in session and session.get('user_role') == 'cliente':
-            # CASO A: Usuario ya logueado
             id_cliente = session['user_id']
         else:
-            # CASO B: Usuario Invitado (Registrar o Actualizar)
+            # Registro rápido para invitados
             id_cliente = request.form['id_cliente']
             nombre = request.form['nombre']
             correo = request.form['correo']
-
-            # Verificamos si existe
-            cursor.execute("SELECT 1 FROM CLIENTE WHERE Id_cliente = ? AND Id_sucursal = ?", (id_cliente, id_suc))
-            if not cursor.fetchone():
-                # Insertar nuevo
-                cursor.execute("""
-                    INSERT INTO CLIENTE (Id_cliente, nombre, direccion, telefono, correo, Id_sucursal)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (id_cliente, nombre, request.form['direccion'], request.form['telefono'], correo, id_suc))
             
-            # Auto-Login para el invitado
+            if sucursal == 'Guayaquil':
+                tabla_destino = "CLIENTE"
+            else:
+                tabla_destino = "[LAPTOP].[TechStore_Guayaquil].[dbo].[CLIENTE]"
+
+            # 1. Verificamos existencia en la Matriz
+            cursor.execute(f"SELECT 1 FROM {tabla_destino} WHERE Id_cliente = ?", (id_cliente,))
+            
+            if not cursor.fetchone():
+                # 2. Insertamos en la Matriz (Guayaquil)
+                cursor.execute(f"""
+                    INSERT INTO {tabla_destino} (Id_cliente, nombre, direccion, telefono, correo, Id_sucursal)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (id_cliente, nombre, request.form['direccion'], request.form['telefono'], correo, id_suc_actual))
+            
+            # Auto-Login
             session['user_id'] = id_cliente
             session['user_name'] = nombre
             session['user_role'] = 'cliente'
-            session['user_email'] = correo
 
-        # 3. CREAR FACTURA
-        # Generar ID Factura (Max + 1)
+        # C. Generar Factura
         id_factura = int(cursor.execute("SELECT ISNULL(MAX(Id_factura), 0) + 1 FROM FACTURA").fetchone()[0])
         
         cursor.execute("""
             INSERT INTO FACTURA (Id_factura, Id_cliente, Id_sucursal, total, fecha)
             VALUES (?, ?, ?, ?, GETDATE())
-        """, (id_factura, id_cliente, id_suc, total_factura))
+        """, (id_factura, id_cliente, id_suc_actual, total_factura))
 
-        # 4. INSERTAR DETALLE (Con la cantidad seleccionada)
+        # D. Insertar Detalle
         cursor.execute("""
             INSERT INTO DETALLE_FACTURA (Id_factura, Id_producto, Id_sucursal, cantidad, precio_unidad, subtotal)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (id_factura, id_prod, id_suc, cantidad_compra, precio_unitario, total_factura))
+        """, (id_factura, id_prod, id_suc_actual, cantidad_compra, precio_unitario, total_factura))
         
-        # 5. ACTUALIZAR INVENTARIO (Restar cantidad)
+        # E. Actualizar Inventario
         cursor.execute("""
             UPDATE INVENTARIO SET cantidad = cantidad - ? 
             WHERE Id_producto = ? AND Id_sucursal = ?
-        """, (cantidad_compra, id_prod, id_suc))
+        """, (cantidad_compra, id_prod, id_suc_actual))
 
         conn.commit()
-        conn.close()
-        
         return redirect(url_for('views.index'))
         
     except Exception as e:
-        if conn: conn.close()
-        # Imprime el error en consola para depuración y lo muestra en la web
         print(f"Error Checkout: {e}")
         return redirect(url_for('views.index', error=f"Error en compra: {str(e)}"))
+    finally:
+        if conn: conn.close()
+
+
+# ==============================================================================
+# 3. GESTIÓN DE INVENTARIO (PRODUCTOS)
+# ==============================================================================
 
 @actions_bp.route('/add_product', methods=['POST'])
 def add_product():
+    """Agregar producto nuevo. Solo permitido en Matriz (Guayaquil)."""
     if session.get('sucursal') != 'Guayaquil':
         return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Acceso denegado."))
 
@@ -101,32 +122,24 @@ def add_product():
         conn = get_db_connection('Guayaquil')
         cursor = conn.cursor()
         
-        # Datos del formulario
+        # Datos básicos
         id_prod = request.form['id_producto']
-        nombre = request.form['nombre']
-        marca = request.form['marca']
-        precio = request.form['precio']
-        
-        # Stocks ingresados
-        stock_para_gye = int(request.form['stock_gye'])
-        stock_para_uio = int(request.form['stock_uio'])
-        stock_total_fisico = stock_para_gye + stock_para_uio
+        stock_gye = int(request.form['stock_gye'])
+        stock_uio = int(request.form['stock_uio'])
+        stock_total_fisico = stock_gye + stock_uio
 
-        # 1. CREAR PRODUCTO (Catálogo Global)
+        # 1. Crear en Catálogo Global
         cursor.execute("INSERT INTO PRODUCTO (Id_producto, nombre, marca, precio) VALUES (?, ?, ?, ?)",
-                       (id_prod, nombre, marca, precio))
+                       (id_prod, request.form['nombre'], request.form['marca'], request.form['precio']))
         
-        # 2. INGRESAR TODO EL STOCK A BODEGA MATRIZ (Primero entra todo a GYE)
-        # Si llegaron 100 laptops (50 para mi, 50 para Quito), fisicamente entraron 100 a mi bodega primero.
+        # 2. Ingresar todo a Bodega Matriz (Físico)
         if stock_total_fisico > 0:
-            cursor.execute("INSERT INTO INVENTARIO (Id_sucursal, Id_producto, cantidad) VALUES (2, ?, ?)",
-                           (id_prod, stock_total_fisico))
+            cursor.execute("INSERT INTO INVENTARIO (Id_sucursal, Id_producto, cantidad) VALUES (?, ?, ?)",
+                           (ID_GUAYAQUIL, id_prod, stock_total_fisico))
         
-        # 3. EJECUTAR TRANSFERENCIA AUTOMÁTICA (Si se pidió enviar a Quito)
-        if stock_para_uio > 0:
-            # Llamamos al SP de envío que ya creamos. 
-            # Este SP restará los 50 de GYE y creará el registro de envío.
-            cursor.execute("EXEC sp_Enviar_A_Quito @IdProducto = ?, @Cantidad = ?", (id_prod, stock_para_uio))
+        # 3. Transferencia Automática a Quito (si aplica)
+        if stock_uio > 0:
+            cursor.execute("EXEC sp_Enviar_A_Quito @IdProducto = ?, @Cantidad = ?", (id_prod, stock_uio))
 
         conn.commit()
         conn.close()
@@ -135,165 +148,135 @@ def add_product():
     except Exception as e:
         return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=f"Error al agregar: {str(e)}"))
 
-@actions_bp.route('/delete_product', methods=['POST'])
-def delete_product():
+@actions_bp.route('/edit_product', methods=['POST'])
+def edit_product():
+    """Editar detalles del producto. Solo Guayaquil."""
     if session.get('sucursal') != 'Guayaquil':
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Solo Matriz puede eliminar."))
-
-    id_prod = request.form['id_producto']
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Solo Guayaquil modifica."))
 
     try:
         conn = get_db_connection('Guayaquil')
         cursor = conn.cursor()
-
-        # Validar si tiene ventas (Integridad Referencial)
-        # Nota: Revisamos localmente. Si hay ventas en Quito, la replicación podría fallar al borrar,
-        # pero SQL Server suele proteger esto con Foreign Keys.
         
-        # 1. Borrar de Inventario Local (Si existe)
-        cursor.execute("DELETE FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = 2", (id_prod,))
-        
-        # 2. Borrar del Catálogo (Esto disparará la replicación de borrado a Quito)
-        cursor.execute("DELETE FROM PRODUCTO WHERE Id_producto = ?", (id_prod,))
-
-        conn.commit()
-        conn.close()
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
-
-    except Exception as e:
-        # Error común: FK Constraint (Ya se vendió el producto)
-        if "REFERENCE" in str(e) or "conflicted" in str(e):
-            mensaje = "No se puede eliminar: El producto ya tiene ventas o movimientos registrados."
-        else:
-            mensaje = f"Error al eliminar: {str(e)}"
-            
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=mensaje))
-    
-@actions_bp.route('/delete_local_inventory', methods=['POST'])
-def delete_local_inventory():
-    # Esta acción es para que una sucursal "limpie" su bodega
-    # No borra el producto del catálogo (porque eso es de Guayaquil), 
-    # solo borra el registro de existencias local.
-    
-    sucursal = session.get('sucursal')
-    # Validamos que NO sea Guayaquil (ellos usan delete_product)
-    if sucursal == 'Guayaquil':
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Usa el botón de eliminar global."))
-
-    id_prod = request.form['id_producto']
-    id_suc = 1  # Asumimos Quito (Nodo 1)
-
-    try:
-        conn = get_db_connection(sucursal)
-        cursor = conn.cursor()
-
-        # Solo borramos de la tabla INVENTARIO local
-        cursor.execute("DELETE FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, id_suc))
-
-        conn.commit()
-        conn.close()
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
-
-    except Exception as e:
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=f"Error al retirar stock: {str(e)}"))
-    
-@actions_bp.route('/edit_product', methods=['POST'])
-def edit_product():
-    sucursal = session.get('sucursal', 'Quito')
-    if sucursal != 'Guayaquil':
-        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Solo Guayaquil modifica."))
-
-    try:
-        conn = get_db_connection(sucursal)
-        cursor = conn.cursor()
+        # Actualizar info
         cursor.execute("UPDATE PRODUCTO SET nombre = ?, marca = ?, precio = ? WHERE Id_producto = ?", 
                        (request.form['nombre'], request.form['marca'], request.form['precio'], request.form['id_producto']))
+        
+        # Actualizar stock local (Upsert simple)
         cursor.execute("""
-            IF EXISTS (SELECT 1 FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = 2)
-                UPDATE INVENTARIO SET cantidad = ? WHERE Id_producto = ? AND Id_sucursal = 2
-            ELSE
-                INSERT INTO INVENTARIO (Id_sucursal, Id_producto, cantidad) VALUES (2, ?, ?)
-        """, (request.form['id_producto'], request.form['stock'], request.form['id_producto'], request.form['id_producto'], request.form['stock']))
+            MERGE INVENTARIO AS target
+            USING (SELECT ? AS id_suc, ? AS id_prod) AS source
+            ON (target.Id_sucursal = source.id_suc AND target.Id_producto = source.id_prod)
+            WHEN MATCHED THEN
+                UPDATE SET cantidad = ?
+            WHEN NOT MATCHED THEN
+                INSERT (Id_sucursal, Id_producto, cantidad) VALUES (source.id_suc, source.id_prod, ?);
+        """, (ID_GUAYAQUIL, request.form['id_producto'], request.form['stock'], request.form['stock']))
+
         conn.commit()
         conn.close()
         return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
     except Exception as e:
         return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=str(e)))
 
-@actions_bp.route('/add_employee', methods=['POST'])
-def add_employee():
-    # 1. Obtenemos la sucursal actual
-    sucursal = session.get('sucursal', 'Quito')
-    
-    # 2. Definimos el ID de sucursal automáticamente
-    # Si es Quito es 1, si es Guayaquil es 2
-    id_sucursal_destino = 1 if sucursal == 'Quito' else 2
-
-    try:
-        conn = get_db_connection(sucursal)
-        cursor = conn.cursor()
-        
-        # 3. Insertamos usando el ID dinámico (?) en lugar del "2" fijo
-        cursor.execute("""
-            INSERT INTO EMPLEADO (Id_empleado, nombre, direccion, telefono, correo, Id_sucursal) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            request.form['id_empleado'], 
-            request.form['nombre'], 
-            request.form['direccion'], 
-            request.form['telefono'], 
-            request.form['correo'],
-            id_sucursal_destino  # <--- Aquí pasamos 1 o 2 según corresponda
-        ))
-        
-        conn.commit()
-        conn.close()
-        return redirect(url_for('views.dashboard', tabla='EMPLEADO'))
-        
-    except Exception as e:
-        return redirect(url_for('views.dashboard', tabla='EMPLEADO', error=f"Error al contratar: {str(e)}"))
-
-@actions_bp.route('/enviar_mercaderia', methods=['POST'])
-def enviar_mercaderia():
-    # 1. Solo Guayaquil puede enviar
+@actions_bp.route('/delete_product', methods=['POST'])
+def delete_product():
+    """Eliminación Global (Matriz)."""
     if session.get('sucursal') != 'Guayaquil':
-        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error="Solo la Matriz puede realizar envíos."))
-
-    id_producto = request.form['id_producto']
-    cantidad = request.form['cantidad']
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Solo Matriz puede eliminar."))
 
     try:
         conn = get_db_connection('Guayaquil')
         cursor = conn.cursor()
-        
-        # Llamamos al SP que creamos en SQL (Resta stock GYE e inserta en ENVIO)
-        cursor.execute("EXEC sp_Enviar_A_Quito @IdProducto = ?, @Cantidad = ?", (id_producto, cantidad))
-        
+        id_prod = request.form['id_producto']
+
+        cursor.execute("DELETE FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, ID_GUAYAQUIL))
+        cursor.execute("DELETE FROM PRODUCTO WHERE Id_producto = ?", (id_prod,))
+
+        conn.commit()
+        conn.close()
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
+    except Exception as e:
+        mensaje = "No se puede eliminar: El producto tiene ventas asociadas." if "REFERENCE" in str(e) else f"Error: {str(e)}"
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=mensaje))
+
+@actions_bp.route('/delete_local_inventory', methods=['POST'])
+def delete_local_inventory():
+    """Eliminación Local (Sucursales). Solo limpia stock, no el producto."""
+    sucursal = session.get('sucursal')
+    if sucursal == 'Guayaquil':
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Usa el botón de eliminar global."))
+
+    try:
+        conn = get_db_connection(sucursal)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", 
+                       (request.form['id_producto'], ID_QUITO))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO'))
+    except Exception as e:
+        return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=f"Error: {str(e)}"))
+
+
+# ==============================================================================
+# 4. RECURSOS HUMANOS (EMPLEADOS)
+# ==============================================================================
+
+@actions_bp.route('/add_employee', methods=['POST'])
+def add_employee():
+    sucursal = session.get('sucursal', 'Quito')
+    id_sucursal_destino = ID_QUITO if sucursal == 'Quito' else ID_GUAYAQUIL
+
+    try:
+        conn = get_db_connection(sucursal)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO EMPLEADO (Id_empleado, nombre, direccion, telefono, correo, Id_sucursal) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            request.form['id_empleado'], request.form['nombre'], request.form['direccion'], 
+            request.form['telefono'], request.form['correo'], id_sucursal_destino
+        ))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('views.dashboard', tabla='EMPLEADO'))
+    except Exception as e:
+        return redirect(url_for('views.dashboard', tabla='EMPLEADO', error=f"Error RRHH: {str(e)}"))
+
+
+# ==============================================================================
+# 5. LOGÍSTICA (ENVÍOS Y RECEPCIONES)
+# ==============================================================================
+
+@actions_bp.route('/enviar_mercaderia', methods=['POST'])
+def enviar_mercaderia():
+    if session.get('sucursal') != 'Guayaquil':
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error="Solo Matriz envía."))
+
+    try:
+        conn = get_db_connection('Guayaquil')
+        cursor = conn.cursor()
+        cursor.execute("EXEC sp_Enviar_A_Quito @IdProducto = ?, @Cantidad = ?", 
+                       (request.form['id_producto'], request.form['cantidad']))
         conn.commit()
         conn.close()
         return redirect(url_for('views.dashboard', tabla='LOGISTICA'))
     except Exception as e:
-        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error=f"Error en envío: {str(e)}"))
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error=f"Error Envío: {str(e)}"))
 
 @actions_bp.route('/recibir_mercaderia', methods=['POST'])
 def recibir_mercaderia():
-    # 2. Solo Quito puede recibir
     if session.get('sucursal') != 'Quito':
-        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error="Solo la Sucursal puede confirmar recepciones."))
-
-    id_envio = request.form['id_envio']
-    usuario = session.get('user_name', 'Admin')
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error="Solo Sucursal recibe."))
 
     try:
         conn = get_db_connection('Quito')
         cursor = conn.cursor()
-        
-        # Llamamos al SP que creamos en SQL (Verifica, Inserta Recepción y Suma Stock UIO)
-        cursor.execute("EXEC sp_Recibir_De_Guayaquil @IdEnvio = ?, @Usuario = ?", (id_envio, usuario))
-        
+        cursor.execute("EXEC sp_Recibir_De_Guayaquil @IdEnvio = ?, @Usuario = ?", 
+                       (request.form['id_envio'], session.get('user_name', 'Admin')))
         conn.commit()
         conn.close()
         return redirect(url_for('views.dashboard', tabla='LOGISTICA'))
     except Exception as e:
-        # Capturamos los errores personalizados del SP (ej. "Ya fue recibido")
-        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error=f"Error al recibir: {str(e)}"))
+        return redirect(url_for('views.dashboard', tabla='LOGISTICA', error=f"Error Recepción: {str(e)}"))

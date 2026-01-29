@@ -8,7 +8,7 @@ auth_bp = Blueprint('auth', __name__)
 def login():
     if request.method == 'POST':
         correo = request.form['correo']
-        sucursal = session.get('sucursal', 'Quito') # Buscamos en el nodo actual
+        sucursal = session.get('sucursal', 'Quito')
         
         try:
             conn = get_db_connection(sucursal)
@@ -21,9 +21,9 @@ def login():
             if empleado:
                 session['user_id'] = empleado[0]
                 session['user_name'] = empleado[1]
-                session['user_role'] = 'admin' # Permiso total
+                session['user_role'] = 'admin'
                 conn.close()
-                return redirect(url_for('views.dashboard')) # Va al dashboard
+                return redirect(url_for('views.dashboard'))
 
             # 2. ¿Es CLIENTE?
             cursor.execute("SELECT Id_cliente, nombre FROM CLIENTE WHERE correo = ?", (correo,))
@@ -32,10 +32,10 @@ def login():
             if cliente:
                 session['user_id'] = cliente[0]
                 session['user_name'] = cliente[1]
-                session['user_role'] = 'cliente' # Permiso limitado
+                session['user_role'] = 'cliente'
                 session['user_email'] = correo
                 conn.close()
-                return redirect(url_for('views.index')) # Va a la tienda
+                return redirect(url_for('views.index'))
 
             conn.close()
             return render_template('login.html', error="Correo no registrado.")

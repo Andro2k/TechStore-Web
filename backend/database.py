@@ -4,7 +4,6 @@ from .config import NODOS
 
 def get_db_connection(sucursal_name):
     """Establece la conexión a SQL Server según el nodo seleccionado."""
-    # Si la sucursal no existe, por defecto usa Quito
     config = NODOS.get(sucursal_name, NODOS['Quito'])
     
     if config.get('use_sql_auth'):
