@@ -5,62 +5,48 @@ from backend.database import get_db_connection
 # --- CONFIGURACIÓN ---
 views_bp = Blueprint('views', __name__)
 
-# Constantes de Identificación
 ID_QUITO = 1
 ID_GUAYAQUIL = 2
 
 # ==============================================================================
 # 1. VISTA PÚBLICA (Catálogo)
 # ==============================================================================
-
 @views_bp.route('/')
 def index():
     """Página principal: Muestra productos con stock según la sucursal seleccionada."""
     sucursal = session.get('sucursal', 'Quito')
     id_suc_actual = ID_QUITO if sucursal == 'Quito' else ID_GUAYAQUIL
-    
     productos = []
-    error_msg = request.args.get('error') # Captura errores que vienen de acciones
+    error_msg = request.args.get('error')
 
     conn = None
     try:
         conn = get_db_connection(sucursal)
         cursor = conn.cursor()
-        
-        # Left Join: Trae el producto aunque no tenga inventario (saldrá NULL -> 0)
         cursor.execute("""
             SELECT P.Id_producto, P.nombre, P.marca, P.precio, ISNULL(I.cantidad, 0) as cantidad 
             FROM PRODUCTO P
             LEFT JOIN INVENTARIO I ON P.Id_producto = I.Id_producto AND I.Id_sucursal = ?
         """, (id_suc_actual,))
-        
         productos = cursor.fetchall()
     except Exception as e:
         error_msg = f"Error de conexión: {str(e)}"
     finally:
         if conn: conn.close()
-
     return render_template('index.html', productos=productos, sucursal=sucursal, error=error_msg)
-
 
 # ==============================================================================
 # 2. VISTA ADMINISTRADOR (Dashboard)
 # ==============================================================================
-
 @views_bp.route('/dashboard')
 def dashboard():
-    """Panel de Control: Gestión de tablas según permisos."""
-    
-    # 1. Seguridad: Solo Admin
     if session.get('user_role') != 'admin':
         return redirect(url_for('auth.login'))
     
-    # 2. Configuración
     sucursal = session.get('sucursal', 'Quito')
     tabla = request.args.get('tabla', 'PRODUCTO')
     error_msg = request.args.get('error')
     
-    # Identificamos el ID numérico
     id_suc_actual = ID_GUAYAQUIL if sucursal == 'Guayaquil' else ID_QUITO
 
     datos = []
@@ -71,10 +57,7 @@ def dashboard():
         conn = get_db_connection(sucursal)
         cursor = conn.cursor()
         
-        # --- LÓGICA POR TABLA ---
-        
         if tabla == 'PRODUCTO':
-            # Muestra catálogo + Stock local + Nombre de la bodega actual
             cursor.execute("""
                 SELECT 
                     P.Id_producto, P.nombre, P.marca, P.precio, 
@@ -89,7 +72,7 @@ def dashboard():
 
         elif tabla == 'LOGISTICA':
             if sucursal == 'Guayaquil':
-                # GUAYAQUIL (Emisor): Ve lo que envió
+                # GUAYAQUIL: Tabla local TRANSFERENCIA_ENVIO
                 cursor.execute("""
                     SELECT E.Id_envio, P.nombre, E.cantidad, E.fecha_envio, E.estado 
                     FROM TRANSFERENCIA_ENVIO E
@@ -97,8 +80,7 @@ def dashboard():
                     ORDER BY E.Id_envio DESC
                 """)
             else:
-                # QUITO (Receptor): Ve lo que llega (Replicado) vs lo que ya procesó (Local)
-                # Cruzamos Envío (Global) con Recepción (Local)
+                # QUITO: Usamos una consulta unificada local
                 cursor.execute("""
                     SELECT 
                         E.Id_envio, 
@@ -116,19 +98,26 @@ def dashboard():
                 """)
 
         elif tabla == 'INVENTARIO':
-            # Vista global (si existe en SQL)
-            cursor.execute("SELECT * FROM V_INVENTARIO_GLOBAL")
+            # [CORRECCIÓN]: Usamos la vista detallada nueva
+            cursor.execute("SELECT * FROM V_INVENTARIO_GLOBAL_DETALLADO")
 
         elif tabla == 'FACTURA':
-            # Reporte de ventas (si existe en SQL)
-            cursor.execute("SELECT * FROM V_REPORTE_VENTAS")
+            # [CORRECCIÓN]: Usamos la vista detallada nueva
+            cursor.execute("""
+                SELECT 
+                    fecha as Fecha,
+                    Sede,
+                    Producto,
+                    cantidad as Cant,
+                    precio_unidad as 'P.Unit',
+                    subtotal as Total
+                FROM V_REPORTE_VENTAS_DETALLADO 
+                ORDER BY fecha DESC
+            """)
 
         else:
-            # Fallback para tablas simples (EMPLEADO, CLIENTE, etc.)
-            # PRECAUCIÓN: Validar inputs en producción para evitar SQL Injection
             cursor.execute(f"SELECT * FROM {tabla}")
             
-        # Obtenemos nombres de columnas y datos
         if cursor.description:
             columnas = [col[0] for col in cursor.description]
             datos = cursor.fetchall()
@@ -145,11 +134,9 @@ def dashboard():
                            tabla_activa=tabla, 
                            error=error_msg)
 
-
 # ==============================================================================
 # 3. VISTA CLIENTE (Perfil)
 # ==============================================================================
-
 @views_bp.route('/perfil')
 def perfil():
     """Perfil de Usuario: Datos personales e historial de compras."""
@@ -170,12 +157,14 @@ def perfil():
         conn = get_db_connection(sucursal)
         cursor = conn.cursor()
 
-        # A. Datos del Cliente
-        cursor.execute("SELECT * FROM CLIENTE WHERE Id_cliente = ? AND Id_sucursal = ?", 
-                       (id_cliente, id_suc_actual))
+        # [CORRECCIÓN AQUI] 
+        # Quitamos "AND Id_sucursal = ?". 
+        # Buscamos al cliente por su ID sin importar donde se registró.
+        cursor.execute("SELECT * FROM CLIENTE WHERE Id_cliente = ?", (id_cliente,))
         cliente_info = cursor.fetchone()
 
         # B. Historial: Cabeceras de Factura
+        # Aquí SI mantenemos el filtro de sucursal para ver solo compras en ESTA tienda.
         cursor.execute("""
             SELECT Id_factura, fecha, total 
             FROM FACTURA 
@@ -185,7 +174,6 @@ def perfil():
         facturas_raw = cursor.fetchall()
 
         # C. Historial: Detalles (Productos por factura)
-        # Nota: Esto hace N consultas. Para alto tráfico usar un solo JOIN y procesar en Python.
         for f in facturas_raw:
             id_fact = f[0]
             cursor.execute("""

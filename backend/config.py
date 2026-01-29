@@ -3,8 +3,8 @@ import os
 
 SECRET_KEY = 'techstore_secret_key_2026'
 
-SERVER_QUITO = os.environ.get('DB_SERVER_QUITO', '192.168.100.34')
-SERVER_GUAYAQUIL = os.environ.get('DB_SERVER_GUAYAQUIL', '192.168.100.13')
+SERVER_QUITO = os.environ.get('DB_SERVER_QUITO', '26.248.18.42')
+SERVER_GUAYAQUIL = os.environ.get('DB_SERVER_GUAYAQUIL', '26.77.173.132')
 
 NODOS = {
     'Quito': {

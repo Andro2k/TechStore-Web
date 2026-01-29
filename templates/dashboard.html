@@ -1,165 +1,357 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TechStore MS - {{ sucursal }}</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        /* Ajustes para el toggle del sidebar si no están en style.css */
-        .sidebar { transition: margin 0.3s; }
-        .main-content { transition: margin 0.3s; }
+        :root {
+            --sidebar-bg: #212529; /* Color oscuro para el sidebar */
+            --sidebar-text: #adb5bd; /* Color texto claro */
+            --sidebar-hover: rgba(255, 255, 255, 0.1);
+            --sidebar-active: #0d6efd; /* Azul primario */
+        }
         
-        /* Clases para ocultar/mostrar */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f6f9; /* Fondo gris muy suave para el contenido */
+            overflow-x: hidden;
+        }
+
+        /* =========================================
+           NUEVOS ESTILOS DEL SIDEBAR OSCURO
+           ========================================= */
+        .sidebar {
+            min-width: 260px;
+            max-width: 260px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            background-color: var(--sidebar-bg); /* Fondo oscuro */
+            color: var(--sidebar-text);
+            transition: all 0.3s ease-in-out;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar .brand-section {
+            padding: 1.5rem;
+            background-color: rgba(0,0,0,0.1); /* Un poco más oscuro que el sidebar */
+        }
+
+        .sidebar .nav-link {
+            color: var(--sidebar-text);
+            padding: 0.8rem 1.5rem;
+            border-radius: 0;
+            border-left: 4px solid transparent;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .sidebar .nav-link:hover {
+            color: #fff;
+            background-color: var(--sidebar-hover);
+            border-left-color: var(--sidebar-text);
+        }
+
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: var(--sidebar-hover);
+            border-left-color: var(--sidebar-active);
+            background: linear-gradient(90deg, rgba(13,110,253,0.15) 0%, rgba(13,110,253,0) 100%);
+        }
+        
+        .sidebar .nav-link i {
+            font-size: 1.1rem;
+            margin-right: 0.75rem;
+             width: 24px; text-align: center;
+        }
+        
+        .sidebar-divider {
+            height: 1px;
+            background-color: rgba(255, 255, 255, 0.1);
+            margin: 1rem 1.5rem;
+        }
+
+        .sidebar-footer {
+            background-color: rgba(0,0,0,0.2);
+            padding: 1.5rem;
+        }
+
+        /* --- Layout Content --- */
+        .main-content {
+            width: calc(100% - 260px);
+            margin-left: 260px;
+            transition: all 0.3s ease-in-out;
+            min-height: 100vh;
+        }
+
+        /* --- Responsive --- */
         .sidebar.collapsed { margin-left: -260px; }
-        .main-content.expanded { margin-left: 0; width: 100%; }
-        
+        .main-content.expanded { width: 100%; margin-left: 0; }
+
         @media (max-width: 768px) {
             .sidebar { margin-left: -260px; }
             .sidebar.active { margin-left: 0; }
-            .main-content { margin-left: 0; width: 100%; }
+            .main-content, .main-content.expanded { width: 100%; margin-left: 0; }
+            .overlay { display: none; position: fixed; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 999; top: 0; left: 0; }
+            .overlay.active { display: block; }
         }
+
+        /* Utilities */
+        .fade-in { animation: fadeIn 0.4s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card { border: none; box-shadow: 0 2px 15px rgba(0,0,0,0.03); }
     </style>
 </head>
 <body>
 
-    <div class="sidebar d-flex flex-column p-3" id="sidebar">
-        <h3 class="text-center py-3 border-bottom border-secondary mb-4">
-            <i class="bi bi-database-fill-gear me-2 text-primary"></i>TECHSTORE
-        </h3>
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li class="nav-item">
-                <a href="/dashboard?tabla=PRODUCTO" class="nav-link {% if tabla_activa == 'PRODUCTO' %}active{% endif %}">
-                    <i class="bi bi-box-seam me-2"></i> Productos
-                </a>
-            </li>
-            <li>
-                <a href="/dashboard?tabla=CLIENTE" class="nav-link {% if tabla_activa == 'CLIENTE' %}active{% endif %}">
-                    <i class="bi bi-people me-2"></i> Clientes
-                </a>
-            </li>
-            <li>
-                <a href="/dashboard?tabla=EMPLEADO" class="nav-link {% if tabla_activa == 'EMPLEADO' %}active{% endif %}">
-                    <i class="bi bi-person-badge me-2"></i> Empleados
-                </a>
-            </li>
-            <li>
-                <a href="/dashboard?tabla=SUCURSAL" class="nav-link {% if tabla_activa == 'SUCURSAL' %}active{% endif %}">
-                    <i class="bi bi-building-fill me-2"></i> Sucursales
-                </a>
-            </li>
-            
-            <hr class="border-secondary">
-            
-            <li class="nav-item">
-                <span class="text-muted small px-3 text-uppercase fw-bold">Gestión Distribuidas</span>
-            </li>
-            <li>
-                <a href="/dashboard?tabla=LOGISTICA" class="nav-link {% if tabla_activa == 'LOGISTICA' %}active{% endif %}">
-                    <i class="bi bi-truck me-2"></i> Logística (Envíos)
-                </a>
-            </li>
-            
-            <li>
-                <a href="/dashboard?tabla=INVENTARIO" class="nav-link {% if tabla_activa == 'INVENTARIO' %}active{% endif %}">
-                    <i class="bi bi-globe me-2"></i> Inventario Global
-                </a>
-            </li>
-            <li>
-                <a href="/dashboard?tabla=FACTURA" class="nav-link {% if tabla_activa == 'FACTURA' %}active{% endif %}">
-                    <i class="bi bi-file-earmark-text me-2"></i> Facturas
-                </a>
-            </li>
-        </ul>
-        <div class="mt-auto p-2 border-top border-secondary text-center">
-            <small class="text-muted">Sucursal Actual: {{ sucursal }}</small>
-            <div class="mt-2">
-                <a href="/" class="btn btn-sm btn-outline-light w-100">Ir a la Tienda</a>
+    <div class="overlay" id="overlay"></div>
+
+    <div class="sidebar d-flex flex-column" id="sidebar">
+        <div class="brand-section d-flex justify-content-between align-items-center">
+            <h4 class="m-0 text-white fw-bold" style="letter-spacing: 1px;">
+                <i class="bi bi-cpu-fill text-primary me-2"></i>TECH<span class="text-primary">STORE</span>
+            </h4>
+            <button class="btn btn-sm btn-dark border-0 d-md-none text-secondary" id="closeSidebar">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="py-3 flex-grow-1 overflow-auto" style="scrollbar-width: none;">
+            <ul class="nav nav-pills flex-column mb-auto">
+                <li class="nav-item">
+                    <span class="text-uppercase small fw-bold px-4 mb-2 d-block text-secondary" style="font-size: 0.7rem; letter-spacing: 0.5px;">Datos Maestros</span>
+                </li>
+                <li class="nav-item">
+                    <a href="/dashboard?tabla=PRODUCTO" class="nav-link {% if tabla_activa == 'PRODUCTO' %}active{% endif %}">
+                        <i class="bi bi-box-seam"></i> Productos
+                    </a>
+                </li>
+                <li>
+                    <a href="/dashboard?tabla=CLIENTE" class="nav-link {% if tabla_activa == 'CLIENTE' %}active{% endif %}">
+                        <i class="bi bi-people"></i> Clientes
+                    </a>
+                </li>
+                <li>
+                    <a href="/dashboard?tabla=EMPLEADO" class="nav-link {% if tabla_activa == 'EMPLEADO' %}active{% endif %}">
+                        <i class="bi bi-person-badge"></i> Empleados
+                    </a>
+                </li>
+                <li>
+                    <a href="/dashboard?tabla=SUCURSAL" class="nav-link {% if tabla_activa == 'SUCURSAL' %}active{% endif %}">
+                        <i class="bi bi-building"></i> Sucursales
+                    </a>
+                </li>
+                
+                <div class="sidebar-divider"></div>
+                
+                <li class="nav-item">
+                    <span class="text-uppercase small fw-bold px-4 mb-2 d-block text-secondary" style="font-size: 0.7rem; letter-spacing: 0.5px;">Operaciones</span>
+                </li>
+                <li>
+                    <a href="/dashboard?tabla=LOGISTICA" class="nav-link {% if tabla_activa == 'LOGISTICA' %}active{% endif %}">
+                        <i class="bi bi-truck"></i> Logística (Envíos)
+                    </a>
+                </li>
+                
+                <li>
+                    <a href="/dashboard?tabla=INVENTARIO" class="nav-link {% if tabla_activa == 'INVENTARIO' %}active{% endif %}">
+                        <i class="bi bi-globe"></i> Inventario Global
+                    </a>
+                </li>
+                <li>
+                    <a href="/dashboard?tabla=FACTURA" class="nav-link {% if tabla_activa == 'FACTURA' %}active{% endif %}">
+                        <i class="bi bi-receipt"></i> Reporte Ventas
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="sidebar-footer text-center">
+            <div class="mb-3">
+                <small class="text-muted d-block mb-1">Conectado a nodo:</small>
+                <span class="badge bg-primary bg-opacity-25 text-primary border border-primary fw-bold px-3 py-2">
+                    {% if sucursal == 'Guayaquil' %}🌊{% else %}🏔️{% endif %} {{ sucursal }}
+                </span>
             </div>
+            <a href="/" class="btn btn-outline-light btn-sm w-100 fw-bold">
+                <i class="bi bi-shop me-2"></i>Ir a la Tienda
+            </a>
         </div>
     </div>
 
-    <div class="main-content" id="content">
+    <div class="main-content p-4" id="content">
         
-        <header class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white rounded shadow-sm">
+        <header class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white rounded shadow-sm border">
             <div class="d-flex align-items-center">
-                <button class="btn btn-outline-dark border-0 me-3" id="sidebarToggle">
-                    <i class="bi bi-list fs-4"></i>
+                <button class="btn btn-light border text-secondary me-3" id="sidebarToggle">
+                    <i class="bi bi-list fs-5"></i>
                 </button>
-                <h4 class="m-0 fw-bold text-secondary">{{ tabla_activa }}</h4>
+                <div>
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.7rem; letter-spacing: 1px;">Gestión de Tabla</small>
+                    <h4 class="m-0 fw-bold text-dark">{{ tabla_activa }}</h4>
+                </div>
             </div>
             
-            <form action="/cambiar_sucursal" method="POST" class="d-flex align-items-center">
-                <select name="nueva_sucursal" onchange="this.form.submit()" class="form-select form-select-sm shadow-sm" style="width: auto;">
-                    <option value="Quito" {% if sucursal == 'Quito' %}selected{% endif %}>Nodo 01: Quito (Lectura/Venta)</option>
-                    <option value="Guayaquil" {% if sucursal == 'Guayaquil' %}selected{% endif %}>Nodo 02: Guayaquil (Matriz)</option>
+            <form action="/cambiar_sucursal" method="POST" class="d-flex align-items-center d-none d-md-flex bg-light p-1 rounded border">
+                <span class="text-muted small mx-2"><i class="bi bi-arrow-left-right"></i></span>
+                <select name="nueva_sucursal" onchange="this.form.submit()" class="form-select form-select-sm border-0 bg-transparent fw-bold text-secondary" style="width: auto; cursor: pointer;">
+                    <option value="Quito" {% if sucursal == 'Quito' %}selected{% endif %}>🏔️ Quito</option>
+                    <option value="Guayaquil" {% if sucursal == 'Guayaquil' %}selected{% endif %}>🌊 Guayaquil</option>
                 </select>
             </form>
         </header>
 
         {% if error %}
-        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
-            <i class="bi bi-exclamation-circle-fill me-2"></i> {{ error }}
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                <div><strong>Error del Sistema:</strong> {{ error }}</div>
+            </div>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endif %}
 
-        {% if sucursal == 'Guayaquil' %}
-            {% if tabla_activa == 'PRODUCTO' %}
-            <div class="card p-4 mb-4 shadow-sm border-0 fade-in border-start border-primary border-5">
-                <h6 class="text-primary fw-bold text-uppercase mb-3 small"><i class="bi bi-box-seam-fill me-1"></i> Nuevo Ingreso de Mercadería</h6>
-                <form action="/add_product" method="POST" class="row g-2">
-                    <div class="col-md-1">
-                        <label class="form-label small text-muted">ID</label>
-                        <input type="number" name="id_producto" class="form-control form-control-sm" placeholder="ID" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small text-muted">Nombre</label>
-                        <input type="text" name="nombre" class="form-control form-control-sm" placeholder="Ej. Laptop HP" required>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small text-muted">Marca</label>
-                        <input type="text" name="marca" class="form-control form-control-sm" placeholder="Marca">
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <label class="form-label small text-muted">P. Venta ($)</label>
-                        <input type="number" step="0.01" name="precio" class="form-control form-control-sm" placeholder="0.00" required>
-                    </div>
-                    
-                    <div class="col-md-2 bg-light p-1 rounded border">
-                        <label class="form-label small fw-bold text-success">Stock GYE (Queda)</label>
-                        <input type="number" name="stock_gye" class="form-control form-control-sm" placeholder="Cant." value="0" min="0" required>
-                    </div>
-                    <div class="col-md-2 bg-light p-1 rounded border">
-                        <label class="form-label small fw-bold text-warning">Enviar a UIO</label>
-                        <input type="number" name="stock_uio" class="form-control form-control-sm" placeholder="Cant." value="0" min="0" required>
-                    </div>
-                    
-                    <div class="col-12 text-end mt-2">
-                        <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold">Guardar y Distribuir</button>
+        {% if sucursal == 'Guayaquil' and tabla_activa == 'PRODUCTO' %}
+        <div class="card mb-5 shadow-sm border-0 fade-in overflow-hidden">
+            <div class="card-header bg-primary text-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="m-0 fw-bold"><i class="bi bi-box-seam-fill me-2"></i>Alta de Nuevo Producto</h5>
+                    <span class="badge bg-white text-primary fw-bold small px-3 py-2"><i class="bi bi-shield-lock-fill me-1"></i> Exclusivo Matriz</span>
+                </div>
+            </div>
+            <div class="card-body p-4 bg-white">
+                <form action="/add_product" method="POST">
+                    <div class="row g-4">
+                        
+                        <div class="col-lg-6">
+                            <h6 class="text-muted text-uppercase fw-bold small mb-3 border-bottom pb-2">Información del Producto</h6>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-secondary">ID Único <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted"><i class="bi bi-hash"></i></span>
+                                        <input type="number" name="id_producto" class="form-control fw-bold" placeholder="Ej. 101" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label small fw-bold text-secondary">Nombre del Producto <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted"><i class="bi bi-tag-fill"></i></span>
+                                        <input type="text" name="nombre" class="form-control" placeholder="Ej. Laptop Gamer..." required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-secondary">Marca / Fabricante</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light text-muted"><i class="bi bi-award-fill"></i></span>
+                                        <input type="text" name="marca" class="form-control" placeholder="Ej. Asus">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold text-secondary">Precio de Venta (PVP) <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-success text-white border-success"><i class="bi bi-currency-dollar"></i></span>
+                                        <input type="number" step="0.01" name="precio" class="form-control fw-bold text-success" placeholder="0.00" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6 border-start-lg ps-lg-4">
+                            <h6 class="text-muted text-uppercase fw-bold small mb-3 border-bottom pb-2">Distribución Inicial de Stock</h6>
+                            
+                            <div class="bg-light p-4 rounded-3 border d-flex flex-column justify-content-center">
+                                <p class="small text-muted mb-4 text-center fst-italic">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Define cuántas unidades se quedan en la Matriz y cuántas se envían automáticamente a la Sucursal.
+                                </p>
+                                
+                                <div class="row g-0 align-items-center justify-content-center">
+                                    <div class="col-5">
+                                        <label class="form-label small fw-bold text-primary mb-1 d-block text-center">Bodega GUAYAQUIL</label>
+                                        <div class="input-group input-group-lg shadow-sm">
+                                            <span class="input-group-text bg-primary text-white border-primary"><i class="bi bi-building-fill"></i></span>
+                                            <input type="number" name="stock_gye" class="form-control text-center fw-bold text-primary fs-5" value="0" min="0" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-2 text-center">
+                                        <i class="bi bi-arrow-right-circle-fill fs-1 text-secondary opacity-25"></i>
+                                    </div>
+
+                                    <div class="col-5">
+                                        <label class="form-label small fw-bold text-warning text-dark mb-1 d-block text-center">Enviar a QUITO</label>
+                                        <div class="input-group input-group-lg shadow-sm">
+                                            <span class="input-group-text bg-warning text-dark border-warning"><i class="bi bi-truck-front-fill"></i></span>
+                                            <input type="number" name="stock_uio" class="form-control text-center fw-bold text-dark fs-5" value="0" min="0" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div> <hr class="my-4">
+
+                    <div class="d-flex justify-content-end">
+                        <button type="reset" class="btn btn-light text-secondary border me-3 fw-bold px-4">Cancelar</button>
+                        <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold shadow">
+                            <i class="bi bi-cloud-arrow-up-fill me-2"></i> Registrar y Distribuir
+                        </button>
                     </div>
                 </form>
             </div>
-            {% endif %}
+        </div>
         {% endif %}
-
         {% if tabla_activa == 'EMPLEADO' %}
         <div class="card p-4 mb-4 shadow-sm border-0 fade-in border-start border-success border-5">
             <h6 class="text-success fw-bold text-uppercase mb-3 small">
-                <i class="bi bi-person-plus-fill me-1"></i> Contratación Local (Sede: {{ sucursal }})
+                <i class="bi bi-person-plus-fill me-1"></i> Contratación Local en {{ sucursal }}
             </h6>
-            <form action="/add_employee" method="POST" class="row g-2">
-                <div class="col-md-1"><input type="number" name="id_empleado" class="form-control" placeholder="ID" required></div>
-                <div class="col-md-3"><input type="text" name="nombre" class="form-control" placeholder="Nombre Completo" required></div>
-                <div class="col-md-2"><input type="text" name="telefono" class="form-control" placeholder="Teléfono"></div>
-                <div class="col-md-3"><input type="email" name="correo" class="form-control" placeholder="Email"></div>
-                <div class="col-md-2"><input type="text" name="direccion" class="form-control" placeholder="Dirección"></div>
-                <div class="col-md-1"><button type="submit" class="btn btn-success w-100"><i class="bi bi-plus"></i></button></div>
+            <form action="/add_employee" method="POST">
+                <div class="row g-3">
+                    <div class="col-md-2">
+                         <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-success text-white border-success"><i class="bi bi-hash"></i></span>
+                            <input type="number" name="id_empleado" class="form-control" placeholder="ID" required>
+                         </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white text-muted"><i class="bi bi-person-vcard"></i></span>
+                            <input type="text" name="nombre" class="form-control" placeholder="Nombre Completo" required>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white text-muted"><i class="bi bi-envelope-at"></i></span>
+                            <input type="email" name="correo" class="form-control" placeholder="Email Corporativo">
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white text-muted"><i class="bi bi-telephone"></i></span>
+                            <input type="text" name="telefono" class="form-control" placeholder="Teléfono">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white text-muted"><i class="bi bi-geo-alt"></i></span>
+                            <input type="text" name="direccion" class="form-control" placeholder="Dirección Domiciliaria">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-success w-100 fw-bold shadow-sm">
+                            <i class="bi bi-check-lg me-1"></i> Contratar
+                        </button>
+                    </div>
+                </div>
             </form>
         </div>
         {% endif %}
@@ -167,27 +359,24 @@
         {% if tabla_activa == 'LOGISTICA' %}
             
             {% if sucursal == 'Guayaquil' %}
-            <div class="card p-4 mb-4 shadow-sm border-0 border-start border-warning border-5 fade-in">
-                <h6 class="text-warning fw-bold text-uppercase mb-3"><i class="bi bi-send-fill me-1"></i> Nuevo Envío a Quito</h6>
-                <form action="/enviar_mercaderia" method="POST" class="row g-2 align-items-end">
-                    <div class="col-md-6">
-                        <label class="small fw-bold">ID Producto a enviar</label>
-                        <input type="number" name="id_producto" class="form-control" placeholder="Ej. 101" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="small fw-bold">Cantidad</label>
-                        <input type="number" name="cantidad" class="form-control" placeholder="Ej. 10" required>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-warning w-100 fw-bold text-dark">Enviar</button>
+            <div class="card p-4 mb-4 shadow-sm border-0 border-start border-warning border-5 fade-in bg-warning bg-opacity-10">
+                <h6 class="text-dark fw-bold text-uppercase mb-3"><i class="bi bi-send-fill me-1"></i> Nuevo Envío a Quito</h6>
+                <form action="/enviar_mercaderia" method="POST">
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-warning border-warning text-dark fw-bold">Producto ID:</span>
+                        <input type="number" name="id_producto" class="form-control border-warning" placeholder="Ej. 101" required>
+                        <span class="input-group-text bg-warning border-warning text-dark fw-bold">Cantidad:</span>
+                        <input type="number" name="cantidad" class="form-control border-warning fw-bold text-center" placeholder="Ej. 10" required style="max-width: 120px;">
+                        <button type="submit" class="btn btn-warning fw-bold text-dark px-5 border-warning">
+                            <i class="bi bi-truck me-2"></i>Enviar
+                        </button>
                     </div>
                 </form>
-                <small class="text-muted mt-2 fst-italic">* Esta acción resta stock de la Matriz y crea una orden de transferencia.</small>
             </div>
             {% endif %}
 
             <div class="card shadow-sm border-0 fade-in">
-                <div class="card-header bg-white py-3">
+                <div class="card-header bg-white py-3 border-0">
                     <h6 class="m-0 fw-bold text-secondary">
                         <i class="bi bi-arrow-left-right me-2"></i>
                         {% if sucursal == 'Guayaquil' %} Historial de Salidas {% else %} Bandeja de Entrada (Recepción) {% endif %}
@@ -195,12 +384,12 @@
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 align-middle">
-                        <thead class="table-light">
+                        <thead class="table-light text-muted small text-uppercase">
                             <tr>
                                 <th># Envío</th>
                                 <th>Producto</th>
-                                <th>Cantidad</th>
-                                <th>Fecha Salida</th>
+                                <th>Cant.</th>
+                                <th>Fecha</th>
                                 <th>Estado</th>
                                 {% if sucursal == 'Quito' %} <th>Acción</th> {% endif %}
                             </tr>
@@ -209,11 +398,15 @@
                             {% if datos %}
                                 {% for fila in datos %}
                                 <tr>
-                                    <td><span class="badge bg-light text-dark border">#{{ fila[0] }}</span></td> <td>{{ fila[1] }}</td> <td class="fw-bold">{{ fila[2] }} un.</td> <td><small class="text-muted">{{ fila[3] }}</small></td> <td>
+                                    <td><span class="badge bg-light text-dark border fw-normal">#{{ fila[0] }}</span></td> 
+                                    <td class="fw-bold text-primary">{{ fila[1] }}</td> 
+                                    <td class="fw-bold">{{ fila[2] }}</td> 
+                                    <td><small class="text-muted">{{ fila[3].strftime('%d-%m-%Y %H:%M') if fila[3] else '-' }}</small></td> 
+                                    <td>
                                         {% if fila[4] == 'RECIBIDO' or (sucursal == 'Guayaquil' and fila[4] == 'RECIBIDO') %}
-                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Completado</span>
+                                            <span class="badge bg-success-subtle text-success border border-success px-3"><i class="bi bi-check-circle-fill me-1"></i> Completado</span>
                                         {% else %}
-                                            <span class="badge bg-warning text-dark"><i class="bi bi-truck me-1"></i>En Tránsito</span>
+                                            <span class="badge bg-warning-subtle text-warning border border-warning px-3 text-dark"><i class="bi bi-truck me-1"></i> En Tránsito</span>
                                         {% endif %}
                                     </td>
                                     
@@ -222,19 +415,19 @@
                                         {% if fila[4] != 'RECIBIDO' %}
                                         <form action="/recibir_mercaderia" method="POST">
                                             <input type="hidden" name="id_envio" value="{{ fila[0] }}">
-                                            <button type="submit" class="btn btn-sm btn-primary fw-bold">
-                                                <i class="bi bi-box-arrow-in-down me-1"></i> Recibir Stock
+                                            <button type="submit" class="btn btn-sm btn-primary fw-bold px-4 rounded-pill shadow-sm">
+                                                <i class="bi bi-box-seam-fill me-1"></i> Recibir
                                             </button>
                                         </form>
                                         {% else %}
-                                            <span class="text-muted small fst-italic"><i class="bi bi-lock-fill"></i> Procesado</span>
+                                            <span class="text-muted small fst-italic"><i class="bi bi-lock-fill me-1"></i> Procesado</span>
                                         {% endif %}
                                     </td>
                                     {% endif %}
                                 </tr>
                                 {% endfor %}
                             {% else %}
-                                <tr><td colspan="6" class="text-center py-5 text-muted">No hay movimientos registrados aún.</td></tr>
+                                <tr><td colspan="6" class="text-center py-5 text-muted">No hay movimientos registrados.</td></tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -249,43 +442,43 @@
                     <div class="card border-0 shadow-sm h-100 product-card">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center mb-3">
-                                <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3">
-                                    <i class="bi bi-building fs-3"></i>
+                                <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3 shadow-sm">
+                                    <i class="bi bi-building fs-2"></i>
                                 </div>
                                 <div>
                                     <h5 class="fw-bold mb-0 text-dark">{{ suc[1] }}</h5> 
-                                    <span class="badge mt-1 {{ 'bg-success' if suc[0] == 2 else 'bg-warning text-dark' }}">
+                                    <span class="badge mt-2 {{ 'bg-success' if suc[0] == 2 else 'bg-info text-dark' }} px-3 py-2">
                                         NODO ID: {{ suc[0] }}
                                     </span>
                                 </div>
                             </div>
-                            <ul class="list-unstyled text-muted small mb-0 ms-2">
-                                <li class="mb-2"><i class="bi bi-geo-alt-fill me-2 text-secondary"></i>{{ suc[2] }}</li> 
-                                <li class="mb-2"><i class="bi bi-map-fill me-2 text-secondary"></i>{{ suc[3] }}</li> 
+                            <ul class="list-unstyled text-secondary mb-0 ms-2">
+                                <li class="mb-2 d-flex align-items-center"><i class="bi bi-geo-alt-fill me-3 text-primary opacity-50 fs-5"></i>{{ suc[2] }}</li> 
+                                <li class="mb-2 d-flex align-items-center"><i class="bi bi-map-fill me-3 text-primary opacity-50 fs-5"></i>{{ suc[3] }}</li> 
                             </ul>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="col-12"><p class="text-center text-muted">No se encontraron sucursales.</p></div>
+                <div class="col-12"><p class="text-center text-muted py-5">No se encontraron sucursales.</p></div>
             {% endif %}
         </div>
 
         {% else %}
         
-        <div class="card shadow-sm border-0 fade-in">
+        <div class="card shadow-sm border-0 fade-in overflow-hidden">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 align-middle">
-                        <thead class="table-light">
+                        <thead class="bg-light border-bottom">
                             <tr>
                                 {% for col in columnas %}
-                                <th class="py-3 px-4 text-uppercase small fw-bold">{{ col }}</th>
+                                <th class="py-3 px-4 text-uppercase small fw-bold text-secondary" style="letter-spacing: 0.5px;">{{ col }}</th>
                                 {% endfor %}
                                 
                                 {% if tabla_activa == 'PRODUCTO' %}
-                                <th class="text-center">Acciones</th>
+                                <th class="text-center text-uppercase small fw-bold text-secondary">Acciones</th>
                                 {% endif %}
                             </tr>
                         </thead>
@@ -294,37 +487,45 @@
                                 {% for fila in datos %}
                                 <tr>
                                     {% for valor in fila %}
-                                    <td class="px-4 py-3">{{ valor if valor is not none else '-' }}</td>
+                                    <td class="px-4 py-3 text-dark">
+                                        {% if valor is number and valor % 1 != 0 and tabla_activa in ['PRODUCTO', 'FACTURA'] %}
+                                            ${{ "{:,.2f}".format(valor) }}
+                                        {% else %}
+                                            {{ valor if valor is not none else '-' }}
+                                        {% endif %}
+                                    </td>
                                     {% endfor %}
                                     
                                     {% if tabla_activa == 'PRODUCTO' %}
                                     <td class="text-center">
                                         
                                         {% if sucursal == 'Guayaquil' %}
-                                            <button class="btn btn-sm btn-outline-warning border-0" 
-                                                    title="Editar Producto / Corregir Stock"
-                                                    onclick="prepararEdicion('{{ fila[0] }}', '{{ fila[1] }}', '{{ fila[2] }}', '{{ fila[3] }}', '{{ fila[5] }}')">
-                                                <i class="bi bi-pencil-square"></i>
-                                            </button>
-
-                                            <button class="btn btn-sm btn-outline-success border-0" 
-                                                    title="Enviar Mercadería a Quito"
-                                                    onclick="prepararEnvio('{{ fila[0] }}', '{{ fila[1] }}')">
-                                                <i class="bi bi-truck"></i>
-                                            </button>
-                                            
-                                            <form action="/delete_product" method="POST" class="d-inline" onsubmit="return confirm('ATENCIÓN: Esto eliminará el producto del catálogo GLOBAL y de todas las sucursales. ¿Continuar?');">
-                                                <input type="hidden" name="id_producto" value="{{ fila[0] }}">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Eliminar Globalmente">
-                                                    <i class="bi bi-trash-fill"></i>
+                                            <div class="btn-group shadow-sm" role="group">
+                                                <button class="btn btn-sm btn-light border text-primary" 
+                                                        title="Editar"
+                                                        onclick="prepararEdicion('{{ fila[0] }}', '{{ fila[1] }}', '{{ fila[2] }}', '{{ fila[3] }}', '{{ fila[5] }}')">
+                                                    <i class="bi bi-pencil-square"></i>
                                                 </button>
-                                            </form>
+
+                                                <button class="btn btn-sm btn-light border text-warning" 
+                                                        title="Enviar a Quito"
+                                                        onclick="prepararEnvio('{{ fila[0] }}', '{{ fila[1] }}')">
+                                                    <i class="bi bi-truck-front-fill"></i>
+                                                </button>
+                                                
+                                                <form action="/delete_product" method="POST" class="d-inline" onsubmit="return confirm('ATENCIÓN: Esto eliminará el producto GLOBALMENTE. ¿Seguro?');">
+                                                    <input type="hidden" name="id_producto" value="{{ fila[0] }}">
+                                                    <button type="submit" class="btn btn-sm btn-light border text-danger" title="Eliminar Global">
+                                                        <i class="bi bi-trash-fill"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
 
                                         {% else %}
-                                            <form action="/delete_local_inventory" method="POST" class="d-inline" onsubmit="return confirm('¿Dejar de vender este producto en Quito? Su stock se eliminará.');">
+                                            <form action="/delete_local_inventory" method="POST" class="d-inline" onsubmit="return confirm('¿Dejar de vender este producto en Quito?');">
                                                 <input type="hidden" name="id_producto" value="{{ fila[0] }}">
-                                                <button type="submit" class="btn btn-sm btn-outline-secondary border-0" title="Retirar de mi Bodega">
-                                                    <i class="bi bi-x-circle-fill"></i> Retirar
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary border-0 bg-light" title="Retirar de Venta Local">
+                                                    <i class="bi bi-eye-slash-fill me-1"></i>Retirar
                                                 </button>
                                             </form>
                                         {% endif %}
@@ -336,8 +537,11 @@
                             {% else %}
                             <tr>
                                 <td colspan="100%" class="text-center py-5 text-muted">
-                                    <i class="bi bi-inbox fs-1 d-block mb-3 text-secondary"></i>
-                                    No hay registros disponibles en {{ sucursal }}.
+                                    <div class="py-4">
+                                        <i class="bi bi-inbox fs-1 d-block mb-3 text-secondary opacity-25"></i>
+                                        <p class="mb-0 fw-bold">Sin registros</p>
+                                        <small>No hay datos disponibles en esta tabla.</small>
+                                    </div>
                                 </td>
                             </tr>
                             {% endif %}
@@ -350,56 +554,89 @@
     </div>
 
     <div class="modal fade" id="editModal" tabindex="-1">
-        <div class="modal-dialog">
-            <form action="/edit_product" method="POST" class="modal-content shadow border-0">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Actualizar Producto</h5>
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/edit_product" method="POST" class="modal-content shadow-lg border-0 rounded-4 overflow-hidden">
+                
+                <div class="modal-header bg-primary text-white px-4 py-3 border-bottom-0">
+                    <h5 class="modal-title fw-bold" style="letter-spacing: 0.5px;">
+                        <i class="bi bi-pencil-square me-2 opacity-75"></i>Actualizar Producto
+                    </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-4">
+
+                <div class="modal-body p-4 bg-light">
                     <input type="hidden" name="id_producto" id="edit_id">
+                    
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Nombre</label>
-                        <input type="text" name="nombre" id="edit_nombre" class="form-control" required>
+                        <label class="form-label small fw-bold text-secondary text-uppercase">Nombre del Producto</label>
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-tag-fill"></i></span>
+                            <input type="text" name="nombre" id="edit_nombre" class="form-control border-start-0 ps-0" required>
+                        </div>
                     </div>
-                    <div class="row mb-3">
-                        <div class="col-6"><label class="form-label small fw-bold">Marca</label><input type="text" name="marca" id="edit_marca" class="form-control"></div>
-                        <div class="col-6"><label class="form-label small fw-bold">Precio</label><input type="number" step="0.01" name="precio" id="edit_precio" class="form-control" required></div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Marca</label>
+                            <div class="input-group shadow-sm">
+                                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-award"></i></span>
+                                <input type="text" name="marca" id="edit_marca" class="form-control border-start-0 ps-0">
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary text-uppercase">Precio ($)</label>
+                            <div class="input-group shadow-sm">
+                                <span class="input-group-text bg-success text-white border-success"><i class="bi bi-currency-dollar"></i></span>
+                                <input type="number" step="0.01" name="precio" id="edit_precio" class="form-control fw-bold text-success border-success" required>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Stock Local (Manual)</label>
-                        <input type="number" name="stock" id="edit_stock" class="form-control" required>
-                        <small class="text-muted d-block mt-1">Usa esto solo para correcciones de inventario.</small>
+
+                    <div class="bg-white p-3 rounded border shadow-sm">
+                        <label class="form-label small fw-bold text-primary mb-2 d-flex align-items-center">
+                            <i class="bi bi-building-fill me-2"></i>Ajuste de Stock Local (Matriz)
+                        </label>
+                        <div class="input-group">
+                            <input type="number" name="stock" id="edit_stock" class="form-control fw-bold text-primary border-primary" required>
+                            <span class="input-group-text bg-primary text-white border-primary fw-bold">Unid.</span>
+                        </div>
+                        <small class="text-muted fst-italic mt-2 d-block" style="font-size: 0.75rem;">
+                            <i class="bi bi-info-circle me-1"></i> Este cambio solo afecta al inventario físico de Guayaquil.
+                        </small>
                     </div>
                 </div>
-                <div class="modal-footer border-0">
-                    <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold">Guardar Cambios</button>
+
+                <div class="modal-footer border-0 bg-light px-4 pb-4 pt-0">
+                    <button type="button" class="btn btn-outline-secondary border-0 fw-bold me-2" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm rounded-pill">
+                        <i class="bi bi-check-lg me-1"></i> Guardar Cambios
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
     <div class="modal fade" id="envioModal" tabindex="-1">
-        <div class="modal-dialog modal-sm">
-            <form action="/enviar_mercaderia" method="POST" class="modal-content shadow border-0">
-                <div class="modal-header bg-warning text-dark">
-                    <h6 class="modal-title fw-bold"><i class="bi bi-truck me-2"></i>Enviar a Quito</h6>
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <form action="/enviar_mercaderia" method="POST" class="modal-content shadow border-0 rounded-4 overflow-hidden border-top border-warning border-5">
+                <div class="modal-header bg-warning bg-opacity-10 text-dark px-4 py-3 border-bottom-0">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-truck-front-fill me-2 text-warning"></i>Enviar a Quito</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-3 text-center">
+                <div class="modal-body p-4 text-center bg-light">
                     <input type="hidden" name="id_producto" id="envio_id">
-                    
-                    <p class="mb-2 small text-muted">Producto:</p>
-                    <h6 class="fw-bold text-primary mb-3" id="envio_nombre"></h6>
-
-                    <div class="form-floating mb-2">
-                        <input type="number" name="cantidad" class="form-control text-center fw-bold" id="envio_cant" placeholder="0" min="1" required>
-                        <label>Cantidad a Enviar</label>
+                    <div class="bg-white p-3 rounded shadow-sm mb-3 border">
+                         <p class="mb-1 small text-muted text-uppercase fw-bold">Producto Seleccionado</p>
+                         <h6 class="fw-bold text-primary m-0 text-truncate" id="envio_nombre"></h6>
                     </div>
-                    <small class="text-muted" style="font-size: 0.75rem;">Se restará de tu bodega local.</small>
+                    <label class="small fw-bold text-dark mb-2">Cantidad a Transferir</label>
+                    <div class="input-group input-group-lg shadow-sm">
+                        <span class="input-group-text bg-warning text-dark border-warning"><i class="bi bi-box-seam-fill"></i></span>
+                        <input type="number" name="cantidad" class="form-control text-center fw-bold fs-4 border-warning text-dark" id="envio_cant" placeholder="0" min="1" required>
+                    </div>
                 </div>
-                <div class="modal-footer border-0 p-2">
-                    <button type="submit" class="btn btn-warning w-100 fw-bold">Confirmar Envío</button>
+                <div class="modal-footer border-0 bg-light px-4 pb-4">
+                    <button type="submit" class="btn btn-warning w-100 fw-bold text-dark shadow-sm py-2">Confirmar Envío</button>
                 </div>
             </form>
         </div>
@@ -407,41 +644,44 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Lógica para mostrar/ocultar el sidebar
+        // LÓGICA RESPONSIVE DEL SIDEBAR
         document.addEventListener('DOMContentLoaded', function() {
             var sidebarToggle = document.getElementById('sidebarToggle');
+            var closeSidebar = document.getElementById('closeSidebar');
             var sidebar = document.getElementById('sidebar');
             var content = document.getElementById('content');
+            var overlay = document.getElementById('overlay');
 
-            if (sidebarToggle) {
-                sidebarToggle.addEventListener('click', function() {
+            function toggleMenu() {
+                if (window.innerWidth < 768) {
+                    sidebar.classList.toggle('active');
+                    overlay.classList.toggle('active');
+                } else {
                     sidebar.classList.toggle('collapsed');
                     content.classList.toggle('expanded');
-                });
+                }
             }
+
+            if (sidebarToggle) sidebarToggle.addEventListener('click', toggleMenu);
+            if (closeSidebar) closeSidebar.addEventListener('click', toggleMenu);
+            if (overlay) overlay.addEventListener('click', toggleMenu);
         });
 
-        // Lógica para llenar el modal de Edición
+        // Funciones de Modales
         function prepararEdicion(id, nombre, marca, precio, stock) {
             document.getElementById('edit_id').value = id;
             document.getElementById('edit_nombre').value = nombre;
             document.getElementById('edit_marca').value = marca;
             document.getElementById('edit_precio').value = precio;
             document.getElementById('edit_stock').value = stock;
-            
-            var modal = new bootstrap.Modal(document.getElementById('editModal'));
-            modal.show();
+            new bootstrap.Modal(document.getElementById('editModal')).show();
         }
 
-        // Lógica para llenar el modal de Envío Rápido
         function prepararEnvio(id, nombre) {
             document.getElementById('envio_id').value = id;
             document.getElementById('envio_nombre').innerText = nombre;
-            // Limpiamos la cantidad previa
             document.getElementById('envio_cant').value = "";
-            
-            var modal = new bootstrap.Modal(document.getElementById('envioModal'));
-            modal.show();
+            new bootstrap.Modal(document.getElementById('envioModal')).show();
         }
     </script>
 </body>

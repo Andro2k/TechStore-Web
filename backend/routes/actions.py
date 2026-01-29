@@ -4,28 +4,26 @@ from backend.database import get_db_connection
 
 # --- CONFIGURACIÓN ---
 actions_bp = Blueprint('actions', __name__)
-
-# Constantes para evitar "números mágicos" en el código
 ID_QUITO = 1
 ID_GUAYAQUIL = 2
 
 # ==============================================================================
 # 1. GESTIÓN DE SESIÓN Y NAVEGACIÓN
 # ==============================================================================
-
 @actions_bp.route('/cambiar_sucursal', methods=['POST'])
 def cambiar_sucursal():
-    """Permite al usuario cambiar el contexto de la base de datos (Quito/Guayaquil)."""
     session['sucursal'] = request.form['nueva_sucursal']
     return redirect(request.referrer or url_for('views.index'))
-
 
 # ==============================================================================
 # 2. PROCESOS DE VENTA (CHECKOUT)
 # ==============================================================================
-
 @actions_bp.route('/checkout', methods=['POST'])
 def checkout():
+    # --- NUEVA SEGURIDAD: BLOQUEAR EMPLEADOS ---
+    if session.get('user_role') == 'admin':
+        return redirect(url_for('views.index', error="⛔ Los empleados no pueden realizar compras con su cuenta de trabajo."))
+
     sucursal = session.get('sucursal', 'Quito')
     id_suc_actual = ID_QUITO if sucursal == 'Quito' else ID_GUAYAQUIL
     
@@ -40,7 +38,7 @@ def checkout():
         conn = get_db_connection(sucursal)
         cursor = conn.cursor()
 
-        # A. Validar Stock Disponible
+        # A. Validar Stock Disponible (Local)
         cursor.execute("SELECT cantidad FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, id_suc_actual))
         row = cursor.fetchone()
         
@@ -50,36 +48,43 @@ def checkout():
 
         # B. Identificar o Registrar Cliente
         id_cliente = None
+        nombre_cliente = ""
+        
         if 'user_id' in session and session.get('user_role') == 'cliente':
             id_cliente = session['user_id']
         else:
-            # Registro rápido para invitados
+            # --- REGISTRO DE CLIENTE NUEVO (LÓGICA DISTRIBUIDA) ---
             id_cliente = request.form['id_cliente']
-            nombre = request.form['nombre']
+            nombre_cliente = request.form['nombre']
             correo = request.form['correo']
+            direccion = request.form['direccion']
+            telefono = request.form['telefono']
             
-            if sucursal == 'Guayaquil':
-                tabla_destino = "CLIENTE"
+            if sucursal == 'Quito':
+                # EN QUITO: Usamos el SP que envía datos a Guayaquil vía Linked Server [MiniPC]
+                cursor.execute("""
+                    EXEC sp_RegistrarClienteNuevo 
+                    @IdCliente = ?, @Nombre = ?, @Direccion = ?, @Telefono = ?, @Correo = ?
+                """, (id_cliente, nombre_cliente, direccion, telefono, correo))
             else:
-                tabla_destino = "[LAPTOP].[TechStore_Guayaquil].[dbo].[CLIENTE]"
-
-            # 1. Verificamos existencia en la Matriz
-            cursor.execute(f"SELECT 1 FROM {tabla_destino} WHERE Id_cliente = ?", (id_cliente,))
+                # EN GUAYAQUIL: Insertamos directo (es la Matriz)
+                # Primero verificamos si existe para no duplicar error
+                cursor.execute("SELECT 1 FROM CLIENTE WHERE Id_cliente = ?", (id_cliente,))
+                if not cursor.fetchone():
+                    cursor.execute("""
+                        INSERT INTO CLIENTE (Id_cliente, nombre, direccion, telefono, correo, Id_sucursal)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (id_cliente, nombre_cliente, direccion, telefono, correo, ID_GUAYAQUIL))
             
-            if not cursor.fetchone():
-                # 2. Insertamos en la Matriz (Guayaquil)
-                cursor.execute(f"""
-                    INSERT INTO {tabla_destino} (Id_cliente, nombre, direccion, telefono, correo, Id_sucursal)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (id_cliente, nombre, request.form['direccion'], request.form['telefono'], correo, id_suc_actual))
-            
-            # Auto-Login
+            # Auto-Login en sesión
             session['user_id'] = id_cliente
-            session['user_name'] = nombre
+            session['user_name'] = nombre_cliente
             session['user_role'] = 'cliente'
 
-        # C. Generar Factura
-        id_factura = int(cursor.execute("SELECT ISNULL(MAX(Id_factura), 0) + 1 FROM FACTURA").fetchone()[0])
+        # C. Generar Factura (ID Manual simple para el ejemplo)
+        # Nota: En producción real, usar IDENTITY o Secuencias es mejor.
+        row_fact = cursor.execute("SELECT ISNULL(MAX(Id_factura), 0) + 1 FROM FACTURA").fetchone()
+        id_factura = int(row_fact[0])
         
         cursor.execute("""
             INSERT INTO FACTURA (Id_factura, Id_cliente, Id_sucursal, total, fecha)
@@ -92,7 +97,7 @@ def checkout():
             VALUES (?, ?, ?, ?, ?, ?)
         """, (id_factura, id_prod, id_suc_actual, cantidad_compra, precio_unitario, total_factura))
         
-        # E. Actualizar Inventario
+        # E. Actualizar Inventario Local
         cursor.execute("""
             UPDATE INVENTARIO SET cantidad = cantidad - ? 
             WHERE Id_producto = ? AND Id_sucursal = ?
@@ -107,14 +112,12 @@ def checkout():
     finally:
         if conn: conn.close()
 
-
 # ==============================================================================
 # 3. GESTIÓN DE INVENTARIO (PRODUCTOS)
 # ==============================================================================
-
 @actions_bp.route('/add_product', methods=['POST'])
 def add_product():
-    """Agregar producto nuevo. Solo permitido en Matriz (Guayaquil)."""
+    #Agregar producto nuevo. Solo permitido en Matriz (Guayaquil).
     if session.get('sucursal') != 'Guayaquil':
         return redirect(url_for('views.dashboard', tabla='PRODUCTO', error="Acceso denegado."))
 
@@ -218,11 +221,9 @@ def delete_local_inventory():
     except Exception as e:
         return redirect(url_for('views.dashboard', tabla='PRODUCTO', error=f"Error: {str(e)}"))
 
-
 # ==============================================================================
 # 4. RECURSOS HUMANOS (EMPLEADOS)
 # ==============================================================================
-
 @actions_bp.route('/add_employee', methods=['POST'])
 def add_employee():
     sucursal = session.get('sucursal', 'Quito')
@@ -244,11 +245,9 @@ def add_employee():
     except Exception as e:
         return redirect(url_for('views.dashboard', tabla='EMPLEADO', error=f"Error RRHH: {str(e)}"))
 
-
 # ==============================================================================
 # 5. LOGÍSTICA (ENVÍOS Y RECEPCIONES)
 # ==============================================================================
-
 @actions_bp.route('/enviar_mercaderia', methods=['POST'])
 def enviar_mercaderia():
     if session.get('sucursal') != 'Guayaquil':
