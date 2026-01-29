@@ -222,19 +222,36 @@ def edit_product():
 
 @actions_bp.route('/add_employee', methods=['POST'])
 def add_employee():
+    # 1. Obtenemos la sucursal actual
     sucursal = session.get('sucursal', 'Quito')
-    if sucursal != 'Guayaquil':
-        return redirect(url_for('views.dashboard', tabla='EMPLEADO', error="Acceso denegado."))
+    
+    # 2. Definimos el ID de sucursal automáticamente
+    # Si es Quito es 1, si es Guayaquil es 2
+    id_sucursal_destino = 1 if sucursal == 'Quito' else 2
+
     try:
         conn = get_db_connection(sucursal)
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO EMPLEADO (Id_empleado, nombre, direccion, telefono, correo, Id_sucursal) VALUES (?, ?, ?, ?, ?, 2)", 
-                       (request.form['id_empleado'], request.form['nombre'], request.form['direccion'], request.form['telefono'], request.form['correo']))
+        
+        # 3. Insertamos usando el ID dinámico (?) en lugar del "2" fijo
+        cursor.execute("""
+            INSERT INTO EMPLEADO (Id_empleado, nombre, direccion, telefono, correo, Id_sucursal) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            request.form['id_empleado'], 
+            request.form['nombre'], 
+            request.form['direccion'], 
+            request.form['telefono'], 
+            request.form['correo'],
+            id_sucursal_destino  # <--- Aquí pasamos 1 o 2 según corresponda
+        ))
+        
         conn.commit()
         conn.close()
         return redirect(url_for('views.dashboard', tabla='EMPLEADO'))
+        
     except Exception as e:
-        return redirect(url_for('views.dashboard', tabla='EMPLEADO', error=str(e)))
+        return redirect(url_for('views.dashboard', tabla='EMPLEADO', error=f"Error al contratar: {str(e)}"))
 
 @actions_bp.route('/enviar_mercaderia', methods=['POST'])
 def enviar_mercaderia():

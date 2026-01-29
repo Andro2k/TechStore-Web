@@ -7,8 +7,23 @@
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <style>
+        /* Ajustes para el toggle del sidebar si no están en style.css */
+        .sidebar { transition: margin 0.3s; }
+        .main-content { transition: margin 0.3s; }
+        
+        /* Clases para ocultar/mostrar */
+        .sidebar.collapsed { margin-left: -260px; }
+        .main-content.expanded { margin-left: 0; width: 100%; }
+        
+        @media (max-width: 768px) {
+            .sidebar { margin-left: -260px; }
+            .sidebar.active { margin-left: 0; }
+            .main-content { margin-left: 0; width: 100%; }
+        }
+    </style>
 </head>
 <body>
 
@@ -94,7 +109,6 @@
         {% endif %}
 
         {% if sucursal == 'Guayaquil' %}
-            
             {% if tabla_activa == 'PRODUCTO' %}
             <div class="card p-4 mb-4 shadow-sm border-0 fade-in border-start border-primary border-5">
                 <h6 class="text-primary fw-bold text-uppercase mb-3 small"><i class="bi bi-box-seam-fill me-1"></i> Nuevo Ingreso de Mercadería</h6>
@@ -111,8 +125,9 @@
                         <label class="form-label small text-muted">Marca</label>
                         <input type="text" name="marca" class="form-control form-control-sm" placeholder="Marca">
                     </div>
+                    
                     <div class="col-md-2">
-                        <label class="form-label small text-muted">Precio ($)</label>
+                        <label class="form-label small text-muted">P. Venta ($)</label>
                         <input type="number" step="0.01" name="precio" class="form-control form-control-sm" placeholder="0.00" required>
                     </div>
                     
@@ -131,21 +146,22 @@
                 </form>
             </div>
             {% endif %}
+        {% endif %}
 
-            {% if tabla_activa == 'EMPLEADO' %}
-            <div class="card p-4 mb-4 shadow-sm border-0 fade-in border-start border-success border-5">
-                <h6 class="text-success fw-bold text-uppercase mb-3 small"><i class="bi bi-person-plus-fill me-1"></i> Contratación Local</h6>
-                <form action="/add_employee" method="POST" class="row g-2">
-                    <div class="col-md-1"><input type="number" name="id_empleado" class="form-control" placeholder="ID" required></div>
-                    <div class="col-md-3"><input type="text" name="nombre" class="form-control" placeholder="Nombre Completo" required></div>
-                    <div class="col-md-2"><input type="text" name="telefono" class="form-control" placeholder="Teléfono"></div>
-                    <div class="col-md-3"><input type="email" name="correo" class="form-control" placeholder="Email"></div>
-                    <div class="col-md-2"><input type="text" name="direccion" class="form-control" placeholder="Dirección"></div>
-                    <div class="col-md-1"><button type="submit" class="btn btn-success w-100"><i class="bi bi-plus"></i></button></div>
-                </form>
-            </div>
-            {% endif %}
-
+        {% if tabla_activa == 'EMPLEADO' %}
+        <div class="card p-4 mb-4 shadow-sm border-0 fade-in border-start border-success border-5">
+            <h6 class="text-success fw-bold text-uppercase mb-3 small">
+                <i class="bi bi-person-plus-fill me-1"></i> Contratación Local (Sede: {{ sucursal }})
+            </h6>
+            <form action="/add_employee" method="POST" class="row g-2">
+                <div class="col-md-1"><input type="number" name="id_empleado" class="form-control" placeholder="ID" required></div>
+                <div class="col-md-3"><input type="text" name="nombre" class="form-control" placeholder="Nombre Completo" required></div>
+                <div class="col-md-2"><input type="text" name="telefono" class="form-control" placeholder="Teléfono"></div>
+                <div class="col-md-3"><input type="email" name="correo" class="form-control" placeholder="Email"></div>
+                <div class="col-md-2"><input type="text" name="direccion" class="form-control" placeholder="Dirección"></div>
+                <div class="col-md-1"><button type="submit" class="btn btn-success w-100"><i class="bi bi-plus"></i></button></div>
+            </form>
+        </div>
         {% endif %}
 
         {% if tabla_activa == 'LOGISTICA' %}
@@ -297,7 +313,7 @@
                                                 <i class="bi bi-truck"></i>
                                             </button>
                                             
-                                            <form action="/delete_product" method="POST" class="d-inline" onsubmit="return confirm('ATENCIÓN: ¿Borrar del catálogo global?');">
+                                            <form action="/delete_product" method="POST" class="d-inline" onsubmit="return confirm('ATENCIÓN: Esto eliminará el producto del catálogo GLOBAL y de todas las sucursales. ¿Continuar?');">
                                                 <input type="hidden" name="id_producto" value="{{ fila[0] }}">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Eliminar Globalmente">
                                                     <i class="bi bi-trash-fill"></i>
@@ -351,8 +367,9 @@
                         <div class="col-6"><label class="form-label small fw-bold">Precio</label><input type="number" step="0.01" name="precio" id="edit_precio" class="form-control" required></div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Stock Local (Nodo 02)</label>
+                        <label class="form-label small fw-bold">Stock Local (Manual)</label>
                         <input type="number" name="stock" id="edit_stock" class="form-control" required>
+                        <small class="text-muted d-block mt-1">Usa esto solo para correcciones de inventario.</small>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
@@ -361,6 +378,7 @@
             </form>
         </div>
     </div>
+
     <div class="modal fade" id="envioModal" tabindex="-1">
         <div class="modal-dialog modal-sm">
             <form action="/enviar_mercaderia" method="POST" class="modal-content shadow border-0">
@@ -386,17 +404,24 @@
             </form>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Funciones básicas de JS
-        var sidebarToggle = document.getElementById('sidebarToggle');
-        var sidebar = document.getElementById('sidebar');
-        var content = document.getElementById('content');
+        // Lógica para mostrar/ocultar el sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            var sidebarToggle = document.getElementById('sidebarToggle');
+            var sidebar = document.getElementById('sidebar');
+            var content = document.getElementById('content');
 
-        sidebarToggle.addEventListener('click', function() {
-            sidebar.classList.toggle('active');
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('collapsed');
+                    content.classList.toggle('expanded');
+                });
+            }
         });
 
+        // Lógica para llenar el modal de Edición
         function prepararEdicion(id, nombre, marca, precio, stock) {
             document.getElementById('edit_id').value = id;
             document.getElementById('edit_nombre').value = nombre;
@@ -407,6 +432,8 @@
             var modal = new bootstrap.Modal(document.getElementById('editModal'));
             modal.show();
         }
+
+        // Lógica para llenar el modal de Envío Rápido
         function prepararEnvio(id, nombre) {
             document.getElementById('envio_id').value = id;
             document.getElementById('envio_nombre').innerText = nombre;
@@ -417,19 +444,5 @@
             modal.show();
         }
     </script>
-    <style>
-        .sidebar { min-height: 100vh; width: 250px; background: #212529; color: white; position: fixed; left: 0; top: 0; transition: all 0.3s; z-index: 1000; }
-        .sidebar a { color: rgba(255,255,255,0.8); }
-        .sidebar a:hover, .sidebar a.active { background: #0d6efd; color: white; }
-        .main-content { margin-left: 250px; padding: 20px; transition: all 0.3s; width: calc(100% - 250px); }
-        .fade-in { animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        @media (max-width: 768px) {
-            .sidebar { margin-left: -250px; }
-            .sidebar.active { margin-left: 0; }
-            .main-content { margin-left: 0; width: 100%; }
-        }
-    </style>
 </body>
 </html>
