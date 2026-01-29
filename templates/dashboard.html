@@ -200,15 +200,22 @@
                 </div>
             </div>
             
-            <form action="/cambiar_sucursal" method="POST" class="d-flex align-items-center bg-light p-1 rounded border">
-                
-                <span class="text-muted small mx-2 d-none d-sm-inline"><i class="bi bi-arrow-left-right"></i></span>
-                
-                <select name="nueva_sucursal" onchange="this.form.submit()" class="form-select form-select-sm border-0 bg-transparent fw-bold text-secondary" style="width: auto; cursor: pointer; max-width: 150px;">
-                    <option value="Quito" {% if sucursal == 'Quito' %}selected{% endif %}>🏔️ Quito</option>
-                    <option value="Guayaquil" {% if sucursal == 'Guayaquil' %}selected{% endif %}>🌊 Guayaquil</option>
-                </select>
-            </form>
+            {% if session.get('user_role') == 'admin' %}
+                <div class="d-flex align-items-center px-2 py-1 border border-secondary rounded bg-secondary bg-opacity-25">
+                    <span class="small text-uppercase fw-bold me-2" style="font-size: 0.7rem;">Sede Fija:</span>
+                    <span class="badge bg-secondary text-white">
+                        {% if sucursal == 'Quito' %}Quito{% else %}Guayaquil{% endif %}
+                    </span>
+                </div>
+            {% else %}
+                <form action="/cambiar_sucursal" method="POST" class="d-flex align-items-center bg-light p-1 rounded border">
+                    <span class="text-muted small mx-2 d-none d-sm-inline"><i class="bi bi-arrow-left-right"></i></span>
+                    <select name="nueva_sucursal" onchange="this.form.submit()" class="form-select form-select-sm border-0 bg-transparent fw-bold text-secondary" style="width: auto; cursor: pointer; max-width: 150px;">
+                        <option value="Quito" {% if sucursal == 'Quito' %}selected{% endif %}>Quito</option>
+                        <option value="Guayaquil" {% if sucursal == 'Guayaquil' %}selected{% endif %}>Guayaquil</option>
+                    </select>
+                </form>
+            {% endif %}
 
         </header>
 
@@ -259,7 +266,7 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold text-secondary">Precio de Venta (PVP) <span class="text-danger">*</span></label>
+                                    <label class="form-label small fw-bold text-secondary">Precio de Venta <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-success text-white border-success"><i class="bi bi-currency-dollar"></i></span>
                                         <input type="number" step="0.01" name="precio" class="form-control fw-bold text-success" placeholder="0.00" required>
@@ -277,24 +284,24 @@
                                     Define cuántas unidades se quedan en la Matriz y cuántas se envían automáticamente a la Sucursal.
                                 </p>
                                 
-                                <div class="row g-0 align-items-center justify-content-center">
+                                <div class="row g-1 align-items-center justify-content-center">
                                     <div class="col-5">
-                                        <label class="form-label small fw-bold text-primary mb-1 d-block text-center">Bodega</label>
-                                        <div class="input-group input-group-lg shadow-sm">
+                                        <label class="form-label small fw-bold text-primary mb-1 d-block text-center" style="font-size: 0.75rem;">Bodega</label>
+                                        <div class="input-group input-group-sm shadow-sm">
                                             <span class="input-group-text bg-primary text-white border-primary"><i class="bi bi-building-fill"></i></span>
-                                            <input type="number" name="stock_gye" class="form-control text-center fw-bold text-primary fs-5" value="0" min="0" required>
+                                            <input type="number" name="stock_gye" class="form-control text-center fw-bold text-primary" value="0" min="0" required>
                                         </div>
                                     </div>
                                     
-                                    <div class="col-2 text-center">
-                                        <i class="bi bi-arrow-right-circle-fill fs-1 text-secondary"></i>
+                                    <div class="col-2 text-center pt-3">
+                                        <i class="bi bi-arrow-right-circle-fill fs-4 text-secondary opacity-50"></i>
                                     </div>
 
                                     <div class="col-5">
-                                        <label class="form-label small fw-bold text-warning text-dark mb-1 d-block text-center">Enviar a QUITO</label>
-                                        <div class="input-group input-group-lg shadow-sm">
+                                        <label class="form-label small fw-bold text-warning text-dark mb-1 d-block text-center" style="font-size: 0.75rem;">Enviar a QUITO</label>
+                                        <div class="input-group input-group-sm shadow-sm">
                                             <span class="input-group-text bg-warning text-dark border-warning"><i class="bi bi-truck-front-fill"></i></span>
-                                            <input type="number" name="stock_uio" class="form-control text-center fw-bold text-dark fs-5" value="0" min="0" required>
+                                            <input type="number" name="stock_uio" class="form-control text-center fw-bold text-dark" value="0" min="0" required>
                                         </div>
                                     </div>
                                 </div>

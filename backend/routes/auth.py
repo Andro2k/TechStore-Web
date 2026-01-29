@@ -27,6 +27,8 @@ def login():
                 session['user_id'] = empleado[0]
                 session['user_name'] = empleado[1]
                 session['user_role'] = 'admin'
+                session['assigned_branch'] = sucursal_seleccionada 
+                
                 conn.close()
                 return redirect(url_for('views.dashboard'))
             

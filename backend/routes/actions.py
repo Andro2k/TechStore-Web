@@ -12,6 +12,12 @@ ID_GUAYAQUIL = 2
 # ==============================================================================
 @actions_bp.route('/cambiar_sucursal', methods=['POST'])
 def cambiar_sucursal():
+    # [NUEVO] CANDADO 2: Si es empleado, IMPEDIR el cambio
+    if session.get('user_role') == 'admin':
+        session['sucursal'] = session.get('assigned_branch', session.get('sucursal'))
+        return redirect(request.referrer or url_for('views.dashboard'))
+
+    # Si es cliente o invitado, sí dejamos cambiar
     session['sucursal'] = request.form['nueva_sucursal']
     return redirect(request.referrer or url_for('views.index'))
 

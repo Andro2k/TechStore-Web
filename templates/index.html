@@ -38,17 +38,27 @@
         >
         <div class="d-flex align-items-center gap-2">
           
-          <form action="/cambiar_sucursal" method="POST" class="d-flex">
-            <select
-              name="nueva_sucursal"
-              onchange="this.form.submit()"
-              class="form-select form-select-sm bg-dark text-white border-secondary shadow-none"
-            >
-              <option value="Quito" {% if sucursal == 'Quito' %}selected{% endif %}>📍 Tienda Quito</option>
-              <option value="Guayaquil" {% if sucursal == 'Guayaquil' %}selected{% endif %}>🌊 Tienda Guayaquil</option>
-            </select>
-          </form>
+          {% if session.get('user_role') == 'admin' %}
+            
+             <div class="d-flex align-items-center px-2 py-1 border border-secondary rounded bg-secondary bg-opacity-25">
+                <span class="text-white small fw-bold">Sede: {{ sucursal }}</span>
+             </div>
 
+          {% else %}
+            
+             <form action="/cambiar_sucursal" method="POST" class="d-flex">
+                <select
+                  name="nueva_sucursal"
+                  onchange="this.form.submit()"
+                  class="form-select form-select-sm bg-dark text-white border-secondary shadow-none"
+                  style="cursor: pointer;"
+                >
+                  <option value="Quito" {% if sucursal == 'Quito' %}selected{% endif %}>📍 Tienda Quito</option>
+                  <option value="Guayaquil" {% if sucursal == 'Guayaquil' %}selected{% endif %}>Tienda Guayaquil</option>
+                </select>
+              </form>
+
+          {% endif %}
           {% if session.get('user_name') %}
           <div class="dropdown">
             <button

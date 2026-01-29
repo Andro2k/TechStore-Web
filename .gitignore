@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 *.spec
 .venv/
+.venv/Lib
 .idea/
 .vscode/
 *.tmp
