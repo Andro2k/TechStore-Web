@@ -259,6 +259,52 @@ def add_employee():
     except Exception as e:
         return redirect(url_for('views.dashboard', tabla='EMPLEADO', error=f"Error RRHH: {str(e)}"))
 
+@actions_bp.route('/edit_employee', methods=['POST'])
+def edit_employee():
+    sucursal = session.get('sucursal')
+    # Validamos que sea admin
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    try:
+        conn = get_db_connection(sucursal)
+        cursor = conn.cursor()
+        
+        # Ejecutamos la actualización
+        cursor.execute("""
+            UPDATE EMPLEADO 
+            SET nombre = ?, correo = ?, telefono = ?, direccion = ?
+            WHERE Id_empleado = ?
+        """, (
+            request.form['nombre'], 
+            request.form['correo'], 
+            request.form['telefono'], 
+            request.form['direccion'], 
+            request.form['id_empleado']
+        ))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('views.dashboard', tabla='EMPLEADO'))
+    except Exception as e:
+        return redirect(url_for('views.dashboard', tabla='EMPLEADO', error=f"Error al editar: {str(e)}"))
+
+@actions_bp.route('/delete_employee', methods=['POST'])
+def delete_employee():
+    sucursal = session.get('sucursal')
+    if session.get('user_role') != 'admin':
+        return redirect(url_for('auth.login'))
+
+    try:
+        conn = get_db_connection(sucursal)
+        cursor = conn.cursor()
+        # Ejecutamos la eliminación
+        cursor.execute("DELETE FROM EMPLEADO WHERE Id_empleado = ?", (request.form['id_empleado'],))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('views.dashboard', tabla='EMPLEADO'))
+    except Exception as e:
+        return redirect(url_for('views.dashboard', tabla='EMPLEADO', error=f"Error al eliminar: {str(e)}"))
+    
 # ==============================================================================
 # 5. LOGÍSTICA (ENVÍOS Y RECEPCIONES)
 # ==============================================================================

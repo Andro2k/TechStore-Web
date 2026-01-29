@@ -11,21 +11,19 @@
     
     <style>
         :root {
-            --sidebar-bg: #212529; /* Color oscuro para el sidebar */
-            --sidebar-text: #adb5bd; /* Color texto claro */
+            --sidebar-bg: #212529;
+            --sidebar-text: #adb5bd;
             --sidebar-hover: rgba(255, 255, 255, 0.1);
-            --sidebar-active: #0d6efd; /* Azul primario */
+            --sidebar-active: #0d6efd;
         }
         
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f4f6f9; /* Fondo gris muy suave para el contenido */
+            background-color: #f4f6f9;
             overflow-x: hidden;
         }
 
-        /* =========================================
-           NUEVOS ESTILOS DEL SIDEBAR OSCURO
-           ========================================= */
+        /* --- SIDEBAR --- */
         .sidebar {
             min-width: 260px;
             max-width: 260px;
@@ -34,16 +32,13 @@
             top: 0;
             left: 0;
             z-index: 1000;
-            background-color: var(--sidebar-bg); /* Fondo oscuro */
+            background-color: var(--sidebar-bg);
             color: var(--sidebar-text);
             transition: all 0.3s ease-in-out;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
         }
 
-        .sidebar .brand-section {
-            padding: 1.5rem;
-            background-color: rgba(0,0,0,0.1); /* Un poco más oscuro que el sidebar */
-        }
+        .sidebar .brand-section { padding: 1.5rem; background-color: rgba(0,0,0,0.1); }
 
         .sidebar .nav-link {
             color: var(--sidebar-text);
@@ -67,24 +62,12 @@
             background: linear-gradient(90deg, rgba(13,110,253,0.15) 0%, rgba(13,110,253,0) 100%);
         }
         
-        .sidebar .nav-link i {
-            font-size: 1.1rem;
-            margin-right: 0.75rem;
-             width: 24px; text-align: center;
-        }
+        .sidebar .nav-link i { font-size: 1.1rem; margin-right: 0.75rem; width: 24px; text-align: center; }
         
-        .sidebar-divider {
-            height: 1px;
-            background-color: rgba(255, 255, 255, 0.1);
-            margin: 1rem 1.5rem;
-        }
+        .sidebar-divider { height: 1px; background-color: rgba(255, 255, 255, 0.1); margin: 1rem 1.5rem; }
+        .sidebar-footer { background-color: rgba(0,0,0,0.2); padding: 1.5rem; }
 
-        .sidebar-footer {
-            background-color: rgba(0,0,0,0.2);
-            padding: 1.5rem;
-        }
-
-        /* --- Layout Content --- */
+        /* --- CONTENT --- */
         .main-content {
             width: calc(100% - 260px);
             margin-left: 260px;
@@ -92,7 +75,6 @@
             min-height: 100vh;
         }
 
-        /* --- Responsive --- */
         .sidebar.collapsed { margin-left: -260px; }
         .main-content.expanded { width: 100%; margin-left: 0; }
 
@@ -104,7 +86,6 @@
             .overlay.active { display: block; }
         }
 
-        /* Utilities */
         .fade-in { animation: fadeIn 0.4s ease-in; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .card { border: none; box-shadow: 0 2px 15px rgba(0,0,0,0.03); }
@@ -160,7 +141,6 @@
                         <i class="bi bi-truck"></i> Logística (Envíos)
                     </a>
                 </li>
-                
                 <li>
                     <a href="/dashboard?tabla=INVENTARIO" class="nav-link {% if tabla_activa == 'INVENTARIO' %}active{% endif %}">
                         <i class="bi bi-globe"></i> Inventario Global
@@ -189,7 +169,6 @@
     <div class="main-content p-4" id="content">
         
         <header class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white rounded shadow-sm border">
-            
             <div class="d-flex align-items-center">
                 <button class="btn btn-light border text-secondary me-2 me-md-3" id="sidebarToggle">
                     <i class="bi bi-list fs-5"></i>
@@ -202,8 +181,8 @@
             
             {% if session.get('user_role') == 'admin' %}
                 <div class="d-flex align-items-center px-2 py-1 border border-secondary rounded bg-secondary bg-opacity-25">
-                    <span class="small text-uppercase fw-bold me-2" style="font-size: 0.7rem;">Sede Fija:</span>
-                    <span class="badge bg-secondary text-white">
+                    <span class="small text-uppercase fw-bold me-2 text-muted" style="font-size: 0.7rem;">Sede Fija:</span>
+                    <span class="badge bg-secondary text-white shadow-sm">
                         {% if sucursal == 'Quito' %}Quito{% else %}Guayaquil{% endif %}
                     </span>
                 </div>
@@ -216,7 +195,6 @@
                     </select>
                 </form>
             {% endif %}
-
         </header>
 
         {% if error %}
@@ -240,7 +218,6 @@
             <div class="card-body p-4 bg-white">
                 <form action="/add_product" method="POST">
                     <div class="row g-4">
-                        
                         <div class="col-lg-6">
                             <h6 class="text-muted text-uppercase fw-bold small mb-3 border-bottom pb-2">Información del Producto</h6>
                             <div class="row g-3">
@@ -292,11 +269,9 @@
                                             <input type="number" name="stock_gye" class="form-control text-center fw-bold text-primary" value="0" min="0" required>
                                         </div>
                                     </div>
-                                    
                                     <div class="col-2 text-center pt-3">
                                         <i class="bi bi-arrow-right-circle-fill fs-4 text-secondary opacity-50"></i>
                                     </div>
-
                                     <div class="col-5">
                                         <label class="form-label small fw-bold text-warning text-dark mb-1 d-block text-center" style="font-size: 0.75rem;">Enviar a QUITO</label>
                                         <div class="input-group input-group-sm shadow-sm">
@@ -307,14 +282,11 @@
                                 </div>
                             </div>
                         </div>
-                    </div> <hr class="my-4">
-
+                    </div> 
+                    <hr class="my-4">
                     <div class="d-flex justify-content-end align-items-center">
-                        <button type="reset" class="btn btn-sm btn-light text-secondary border me-3 fw-bold px-3">
-                            Cancelar
-                        </button>
-                        
-                        <button type="submit" class="btn btn-sm btn-primary px-3 fw-bold shadow">
+                        <button type="reset" class="btn btn-sm btn-light text-secondary border me-3 fw-bold px-3">Cancelar</button>
+                        <button type="submit" class="btn btn-sm btn-primary px-4 fw-bold shadow">
                             <i class="bi bi-cloud-arrow-up-fill me-2"></i> Registrar y Distribuir
                         </button>
                     </div>
@@ -322,6 +294,7 @@
             </div>
         </div>
         {% endif %}
+
         {% if tabla_activa == 'EMPLEADO' %}
         <div class="card p-4 mb-4 shadow-sm border-0 fade-in border-start border-success border-5">
             <h6 class="text-success fw-bold text-uppercase mb-3 small">
@@ -377,27 +350,23 @@
                 <h6 class="text-dark fw-bold text-uppercase mb-3"><i class="bi bi-send-fill me-1"></i> Nuevo Envío a Quito</h6>
                 <form action="/enviar_mercaderia" method="POST">
                     <div class="row g-2">
-                        
                         <div class="col-12 col-md-5">
                             <div class="input-group shadow-sm">
                                 <span class="input-group-text bg-warning border-warning text-dark fw-bold">Producto ID:</span>
                                 <input type="number" name="id_producto" class="form-control border-warning" placeholder="Ej. 101" required>
                             </div>
                         </div>
-
                         <div class="col-12 col-md-4">
                             <div class="input-group shadow-sm">
                                 <span class="input-group-text bg-warning border-warning text-dark fw-bold">Cantidad:</span>
                                 <input type="number" name="cantidad" class="form-control border-warning fw-bold text-center" placeholder="Ej. 10" required>
                             </div>
                         </div>
-
                         <div class="col-12 col-md-3">
                             <button type="submit" class="btn btn-warning w-100 fw-bold text-dark border-warning shadow-sm">
                                 <i class="bi bi-truck me-2"></i>Enviar
                             </button>
                         </div>
-                        
                     </div>
                 </form>
             </div>
@@ -470,7 +439,8 @@
                     <div class="card border-0 shadow-sm h-100 product-card">
                         <div class="card-body p-4">
                             <div class="d-flex align-items-center mb-3">
-                                <div class="bg-primary bg-opacity-10 p-3 text-primary me-3 shadow-sm">
+                                <div class="d-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-4 text-primary me-3 shadow-sm" 
+                                     style="width: 70px; height: 70px; min-width: 70px;">
                                     <i class="bi bi-building fs-2"></i>
                                 </div>
                                 <div>
@@ -494,7 +464,6 @@
         </div>
 
         {% else %}
-        
         <div class="card shadow-sm border-0 fade-in overflow-hidden">
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -505,7 +474,7 @@
                                 <th class="py-3 px-4 text-uppercase small fw-bold text-secondary" style="letter-spacing: 0.5px;">{{ col }}</th>
                                 {% endfor %}
                                 
-                                {% if tabla_activa == 'PRODUCTO' %}
+                                {% if tabla_activa in ['PRODUCTO', 'EMPLEADO'] %}
                                 <th class="text-center text-uppercase small fw-bold text-secondary">Acciones</th>
                                 {% endif %}
                             </tr>
@@ -526,7 +495,6 @@
                                     
                                     {% if tabla_activa == 'PRODUCTO' %}
                                     <td class="text-center">
-                                        
                                         {% if sucursal == 'Guayaquil' %}
                                             <div class="btn-group shadow-sm" role="group">
                                                 <button class="btn btn-sm btn-light border text-primary" 
@@ -534,13 +502,11 @@
                                                         onclick="prepararEdicion('{{ fila[0] }}', '{{ fila[1] }}', '{{ fila[2] }}', '{{ fila[3] }}', '{{ fila[5] }}')">
                                                     <i class="bi bi-pencil-square"></i>
                                                 </button>
-
                                                 <button class="btn btn-sm btn-light border text-warning" 
                                                         title="Enviar a Quito"
                                                         onclick="prepararEnvio('{{ fila[0] }}', '{{ fila[1] }}')">
                                                     <i class="bi bi-truck-front-fill"></i>
                                                 </button>
-                                                
                                                 <form action="/delete_product" method="POST" class="d-inline" onsubmit="return confirm('ATENCIÓN: Esto eliminará el producto GLOBALMENTE. ¿Seguro?');">
                                                     <input type="hidden" name="id_producto" value="{{ fila[0] }}">
                                                     <button type="submit" class="btn btn-sm btn-light border text-danger" title="Eliminar Global">
@@ -548,7 +514,6 @@
                                                     </button>
                                                 </form>
                                             </div>
-
                                         {% else %}
                                             <form action="/delete_local_inventory" method="POST" class="d-inline" onsubmit="return confirm('¿Dejar de vender este producto en Quito?');">
                                                 <input type="hidden" name="id_producto" value="{{ fila[0] }}">
@@ -557,7 +522,23 @@
                                                 </button>
                                             </form>
                                         {% endif %}
+                                    </td>
 
+                                    {% elif tabla_activa == 'EMPLEADO' %}
+                                    <td class="text-center">
+                                        <div class="btn-group shadow-sm">
+                                            <button class="btn btn-sm btn-light border text-primary" 
+                                                    title="Editar Empleado"
+                                                    onclick="prepararEdicionEmpleado('{{ fila[0] }}', '{{ fila[1] }}', '{{ fila[2] }}', '{{ fila[3] }}', '{{ fila[4] }}')">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <form action="/delete_employee" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de despedir a este empleado?');">
+                                                <input type="hidden" name="id_empleado" value="{{ fila[0] }}">
+                                                <button type="submit" class="btn btn-sm btn-light border text-danger" title="Eliminar">
+                                                    <i class="bi bi-trash-fill"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                     {% endif %}
                                 </tr>
@@ -584,17 +565,14 @@
     <div class="modal fade" id="editModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <form action="/edit_product" method="POST" class="modal-content shadow-lg border-0 rounded-4 overflow-hidden">
-                
                 <div class="modal-header bg-primary text-white px-4 py-3 border-bottom-0">
                     <h5 class="modal-title fw-bold" style="letter-spacing: 0.5px;">
                         <i class="bi bi-pencil-square me-2 opacity-75"></i>Actualizar Producto
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-
                 <div class="modal-body p-4 bg-light">
                     <input type="hidden" name="id_producto" id="edit_id">
-                    
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-secondary text-uppercase">Nombre del Producto</label>
                         <div class="input-group shadow-sm">
@@ -602,7 +580,6 @@
                             <input type="text" name="nombre" id="edit_nombre" class="form-control border-start-0 ps-0" required>
                         </div>
                     </div>
-
                     <div class="row g-3 mb-4">
                         <div class="col-6">
                             <label class="form-label small fw-bold text-secondary text-uppercase">Marca</label>
@@ -619,7 +596,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="bg-white p-3 rounded border shadow-sm">
                         <label class="form-label small fw-bold text-primary mb-2 d-flex align-items-center">
                             <i class="bi bi-building-fill me-2"></i>Ajuste de Stock Local (Matriz)
@@ -628,17 +604,58 @@
                             <input type="number" name="stock" id="edit_stock" class="form-control fw-bold text-primary border-primary" required>
                             <span class="input-group-text bg-primary text-white border-primary fw-bold">Unid.</span>
                         </div>
-                        <small class="text-muted fst-italic mt-2 d-block" style="font-size: 0.75rem;">
-                            <i class="bi bi-info-circle me-1"></i> Este cambio solo afecta al inventario físico de Guayaquil.
-                        </small>
                     </div>
                 </div>
-
                 <div class="modal-footer border-0 bg-light px-4 pb-4 pt-0">
                     <button type="button" class="btn btn-outline-secondary border-0 fw-bold me-2" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm rounded-pill">
-                        <i class="bi bi-check-lg me-1"></i> Guardar Cambios
-                    </button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm rounded-pill">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editEmployeeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/edit_employee" method="POST" class="modal-content shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="modal-header bg-success text-white px-4 py-3 border-bottom-0">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-person-gear me-2 opacity-75"></i>Editar Empleado
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">ID Empleado</label>
+                        <input type="text" name="id_empleado" id="emp_id" class="form-control bg-white" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Nombre Completo</label>
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-person"></i></span>
+                            <input type="text" name="nombre" id="emp_nombre" class="form-control border-start-0 ps-0" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Correo Corporativo</label>
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="correo" id="emp_correo" class="form-control border-start-0 ps-0">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Teléfono</label>
+                            <input type="text" name="telefono" id="emp_telefono" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Dirección</label>
+                            <input type="text" name="direccion" id="emp_direccion" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light px-4 pb-4 pt-0">
+                    <button type="button" class="btn btn-outline-secondary border-0 fw-bold me-2" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold shadow-sm rounded-pill">Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -672,7 +689,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // LÓGICA RESPONSIVE DEL SIDEBAR
         document.addEventListener('DOMContentLoaded', function() {
             var sidebarToggle = document.getElementById('sidebarToggle');
             var closeSidebar = document.getElementById('closeSidebar');
@@ -695,7 +711,6 @@
             if (overlay) overlay.addEventListener('click', toggleMenu);
         });
 
-        // Funciones de Modales
         function prepararEdicion(id, nombre, marca, precio, stock) {
             document.getElementById('edit_id').value = id;
             document.getElementById('edit_nombre').value = nombre;
@@ -710,6 +725,15 @@
             document.getElementById('envio_nombre').innerText = nombre;
             document.getElementById('envio_cant').value = "";
             new bootstrap.Modal(document.getElementById('envioModal')).show();
+        }
+
+        function prepararEdicionEmpleado(id, nombre, direccion, telefono, correo) {
+            document.getElementById('emp_id').value = id;
+            document.getElementById('emp_nombre').value = nombre;
+            document.getElementById('emp_direccion').value = direccion;
+            document.getElementById('emp_telefono').value = telefono;
+            document.getElementById('emp_correo').value = correo;
+            new bootstrap.Modal(document.getElementById('editEmployeeModal')).show();
         }
     </script>
 </body>
