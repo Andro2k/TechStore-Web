@@ -1,4 +1,5 @@
 # backend/routes/actions.py
+import json
 from flask import Blueprint, request, redirect, session, url_for
 from backend.database import get_db_connection
 
@@ -26,69 +27,55 @@ def cambiar_sucursal():
 # ==============================================================================
 @actions_bp.route('/checkout', methods=['POST'])
 def checkout():
-    # --- NUEVA SEGURIDAD: BLOQUEAR EMPLEADOS ---
+    # 1. Seguridad
     if session.get('user_role') == 'admin':
-        return redirect(url_for('views.index', error="⛔ Los empleados no pueden realizar compras con su cuenta de trabajo."))
+        return redirect(url_for('views.index', error="⛔ Los empleados no pueden comprar."))
 
     sucursal = session.get('sucursal', 'Quito')
     id_suc_actual = ID_QUITO if sucursal == 'Quito' else ID_GUAYAQUIL
     
-    # Datos del formulario
-    id_prod = request.form['id_producto']
-    cantidad_compra = int(request.form['cantidad'])
-    precio_unitario = float(request.form['precio_unitario'])
-    total_factura = precio_unitario * cantidad_compra
-
     conn = None
     try:
+        # 2. Obtener datos del Carrito (JSON String)
+        cart_data_str = request.form.get('cart_data')
+        if not cart_data_str:
+            return redirect(url_for('views.index', error="El carrito está vacío."))
+        
+        # Convertimos el texto JSON a una lista de Python
+        carrito = json.loads(cart_data_str) 
+
         conn = get_db_connection(sucursal)
         cursor = conn.cursor()
 
-        # A. Validar Stock Disponible (Local)
-        cursor.execute("SELECT cantidad FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, id_suc_actual))
-        row = cursor.fetchone()
-        
-        if not row or row[0] < cantidad_compra:
-            conn.close()
-            return redirect(url_for('views.index', error=f"Stock insuficiente. Disponibles: {row[0] if row else 0}"))
-
-        # B. Identificar o Registrar Cliente
+        # 3. Identificar Cliente (Igual que antes)
         id_cliente = None
-        nombre_cliente = ""
-        
         if 'user_id' in session and session.get('user_role') == 'cliente':
             id_cliente = session['user_id']
         else:
-            # --- REGISTRO DE CLIENTE NUEVO (LÓGICA DISTRIBUIDA) ---
+            # Registro rápido de cliente
             id_cliente = request.form['id_cliente']
-            nombre_cliente = request.form['nombre']
-            correo = request.form['correo']
-            direccion = request.form['direccion']
-            telefono = request.form['telefono']
-            
             if sucursal == 'Quito':
-                # EN QUITO: Usamos el SP que envía datos a Guayaquil vía Linked Server [MiniPC]
                 cursor.execute("""
                     EXEC sp_RegistrarClienteNuevo 
                     @IdCliente = ?, @Nombre = ?, @Direccion = ?, @Telefono = ?, @Correo = ?
-                """, (id_cliente, nombre_cliente, direccion, telefono, correo))
+                """, (id_cliente, request.form['nombre'], request.form['direccion'], request.form['telefono'], request.form['correo']))
             else:
-                # EN GUAYAQUIL: Insertamos directo (es la Matriz)
-                # Primero verificamos si existe para no duplicar error
                 cursor.execute("SELECT 1 FROM CLIENTE WHERE Id_cliente = ?", (id_cliente,))
                 if not cursor.fetchone():
                     cursor.execute("""
                         INSERT INTO CLIENTE (Id_cliente, nombre, direccion, telefono, correo, Id_sucursal)
                         VALUES (?, ?, ?, ?, ?, ?)
-                    """, (id_cliente, nombre_cliente, direccion, telefono, correo, ID_GUAYAQUIL))
+                    """, (id_cliente, request.form['nombre'], request.form['direccion'], request.form['telefono'], request.form['correo'], ID_GUAYAQUIL))
             
-            # Auto-Login en sesión
+            # Auto-Login
             session['user_id'] = id_cliente
-            session['user_name'] = nombre_cliente
+            session['user_name'] = request.form['nombre']
             session['user_role'] = 'cliente'
 
-        # C. Generar Factura (ID Manual simple para el ejemplo)
-        # Nota: En producción real, usar IDENTITY o Secuencias es mejor.
+        # 4. Crear Cabecera de Factura
+        # Calculamos el total sumando el backend para seguridad
+        total_factura = sum(item['precio'] * item['cantidad'] for item in carrito)
+        
         row_fact = cursor.execute("SELECT ISNULL(MAX(Id_factura), 0) + 1 FROM FACTURA").fetchone()
         id_factura = int(row_fact[0])
         
@@ -97,24 +84,37 @@ def checkout():
             VALUES (?, ?, ?, ?, GETDATE())
         """, (id_factura, id_cliente, id_suc_actual, total_factura))
 
-        # D. Insertar Detalle
-        cursor.execute("""
-            INSERT INTO DETALLE_FACTURA (Id_factura, Id_producto, Id_sucursal, cantidad, precio_unidad, subtotal)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (id_factura, id_prod, id_suc_actual, cantidad_compra, precio_unitario, total_factura))
-        
-        # E. Actualizar Inventario Local
-        cursor.execute("""
-            UPDATE INVENTARIO SET cantidad = cantidad - ? 
-            WHERE Id_producto = ? AND Id_sucursal = ?
-        """, (cantidad_compra, id_prod, id_suc_actual))
+        # 5. Insertar Detalles (Bucle por cada producto del carrito)
+        for item in carrito:
+            id_prod = item['id']
+            cantidad = int(item['cantidad'])
+            precio = float(item['precio'])
+            subtotal = precio * cantidad
+
+            # a. Validar stock real en DB antes de insertar
+            cursor.execute("SELECT cantidad FROM INVENTARIO WHERE Id_producto = ? AND Id_sucursal = ?", (id_prod, id_suc_actual))
+            stock_row = cursor.fetchone()
+            if not stock_row or stock_row[0] < cantidad:
+                raise Exception(f"Stock insuficiente para {item['nombre']}.")
+
+            # b. Insertar detalle
+            cursor.execute("""
+                INSERT INTO DETALLE_FACTURA (Id_factura, Id_producto, Id_sucursal, cantidad, precio_unidad, subtotal)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (id_factura, id_prod, id_suc_actual, cantidad, precio, subtotal))
+            
+            # c. Restar inventario
+            cursor.execute("""
+                UPDATE INVENTARIO SET cantidad = cantidad - ? 
+                WHERE Id_producto = ? AND Id_sucursal = ?
+            """, (cantidad, id_prod, id_suc_actual))
 
         conn.commit()
-        return redirect(url_for('views.index'))
-        
+        return redirect(url_for('views.index')) # Éxito
+
     except Exception as e:
-        print(f"Error Checkout: {e}")
-        return redirect(url_for('views.index', error=f"Error en compra: {str(e)}"))
+        if conn: conn.rollback()
+        return redirect(url_for('views.index', error=f"Error en la compra: {str(e)}"))
     finally:
         if conn: conn.close()
 
