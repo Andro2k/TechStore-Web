@@ -155,14 +155,20 @@
         </div>
         <div class="sidebar-footer text-center">
             <div class="mb-3">
-                <small class="text-primary d-block mb-1">Conectado a nodo:</small>
+                <small class="text-secondary d-block mb-1" style="font-size: 0.7rem;">NODO ACTUAL</small>
                 <span class="badge bg-primary bg-opacity-25 text-primary border border-primary fw-bold px-3 py-2">
                     {% if sucursal == 'Guayaquil' %}🌊{% else %}🏔️{% endif %} {{ sucursal }}
                 </span>
             </div>
-            <a href="/" class="btn btn-outline-light btn-sm w-100 fw-bold">
-                <i class="bi bi-shop me-2"></i>Ir a la Tienda
-            </a>
+            
+            <div class="d-grid gap-2">
+                <a href="/" class="btn btn-outline-secondary btn-sm fw-bold text-light border-secondary">
+                    <i class="bi bi-shop me-2"></i>Ir a la Tienda
+                </a>
+                <a href="/logout" class="btn btn-danger btn-sm fw-bold shadow-sm">
+                    <i class="bi bi-box-arrow-right me-2"></i>Cerrar Sesión
+                </a>
+            </div>
         </div>
     </div>
 
